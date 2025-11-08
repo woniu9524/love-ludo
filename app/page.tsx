@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
+import { Github } from "lucide-react";
 
 export default async function Home() {
   const supabase = await createClient();
@@ -21,6 +22,18 @@ export default async function Home() {
         <p className="text-xs text-white/60">
           将网站添加到主屏幕可以获得近似app的体验哦~
         </p>
+      </div>
+      {/* 顶部右侧 GitHub 链接 */}
+      <div className="absolute top-3 right-3">
+        <a
+          href="https://github.com/woniu9524/love-ludo"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="w-10 h-10 glass rounded-xl flex items-center justify-center hover:bg-white/10 transition-all"
+          aria-label="GitHub 仓库"
+        >
+          <Github className="w-5 h-5" />
+        </a>
       </div>
       {/* 背景装饰 - 更柔和 */}
       <div className="absolute inset-0 -z-10 pointer-events-none">
