@@ -1,0 +1,38 @@
+name: 🔨 强制更新锁文件
+
+on:
+  workflow_dispatch: # 仅手动触发
+
+jobs:
+  force-update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 拉取代码
+        uses: actions/checkout@v4
+
+      - name: 🏗️ 设置 PNPM
+        uses: pnpm/action-setup@v4
+        with:
+          version: 8.15.0
+
+      - name: ⚙️ 设置 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: 📦 强制安装并更新锁文件 (关键步骤!)
+        run: pnpm install --no-frozen-lockfile
+
+      - name: 💾 提交更新
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git add pnpm-lock.yaml
+          if git diff --staged --quiet; then
+            echo "锁文件无变化。"
+          else
+            git commit -m "🔨 chore: 强制更新锁文件以匹配 package.json"
+            git push
+            echo "锁文件已更新并推送。"
+          fi
