@@ -127,7 +127,11 @@ export default async function LobbyPage({ searchParams }: { searchParams?: { err
       await supabase.auth.signOut();
       
       // ============ 【修改这里】重定向到专门的过期提示页面 ============
-      redirect(`/login/expired?email=${encodeURIComponent(user.email)}&last_login_time=${encodeURIComponent(lastLoginTime.toISOString())}`);
+      // 确保所有参数都是字符串
+      const userEmail = user.email || '';
+      const lastLoginTimeStr = lastLoginTime.toISOString();
+      
+      redirect(`/login/expired?email=${encodeURIComponent(userEmail)}&last_login_time=${encodeURIComponent(lastLoginTimeStr)}`);
     }
   }
   
