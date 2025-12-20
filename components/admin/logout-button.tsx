@@ -1,16 +1,21 @@
-// /components/admin/logout-button.tsx - 客户端组件
+// /components/admin/logout-button.tsx
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 
 export default function LogoutButton() {
   const router = useRouter();
   
   const handleLogout = async () => {
     try {
-      // 使用客户端 Supabase 客户端
-      const supabase = createClientComponentClient();
+      // 使用动态导入避免服务器组件问题
+      const { createBrowserClient } = await import('@supabase/ssr');
+      
+      const supabase = createBrowserClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!
+      );
+      
       await supabase.auth.signOut();
       router.push('/login');
       router.refresh();
