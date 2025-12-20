@@ -10,15 +10,34 @@ import { Users, LogIn, Layers, ChevronDown, Hash, Github } from "lucide-react";
 import PreferencesModal from "@/components/profile/preferences-modal";
 import Link from "next/link";
 
-// 辅助函数：从JWT中解析创建时间
+// 辅助函数：从JWT中解析创建时间（安全版本）
 function getJwtCreationTime(jwt: string): Date | null {
   try {
     // JWT格式: header.payload.signature
     const payloadBase64 = jwt.split('.')[1];
     if (!payloadBase64) return null;
     
-    // Base64解码
-    const payloadJson = Buffer.from(payloadBase64, 'base64').toString();
+    // Base64解码（兼容Node.js和浏览器环境）
+    let payloadJson: string;
+    
+    // 处理可能的Base64 URL编码
+    const base64 = payloadBase64.replace(/-/g, '+').replace(/_/g, '/');
+    const pad = base64.length % 4;
+    const paddedBase64 = pad ? base64 + '='.repeat(4 - pad) : base64;
+    
+    // 在Node.js环境中使用Buffer，在浏览器中使用atob
+    if (typeof Buffer !== 'undefined') {
+      payloadJson = Buffer.from(paddedBase64, 'base64').toString();
+    } else {
+      // 浏览器环境
+      payloadJson = decodeURIComponent(
+        atob(paddedBase64)
+          .split('')
+          .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+          .join('')
+      );
+    }
+    
     const payload = JSON.parse(payloadJson);
     
     // iat是签发时间（秒），需要转换为毫秒
@@ -39,7 +58,20 @@ export default async function LobbyPage({ searchParams }: { searchParams?: { err
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { cookies: { getAll: () => cookieStore.getAll(), setAll: () => {} } }
+    { 
+      cookies: { 
+        getAll: () => cookieStore.getAll(),
+        setAll: (cookiesToSet) => {
+          try {
+            cookiesToSet.forEach(({ name, value, options }) => {
+              cookieStore.set(name, value, options);
+            });
+          } catch (error) {
+            console.error('设置cookie失败:', error);
+          }
+        }
+      }
+    }
   );
   
   // 2. 检查用户登录状态
@@ -77,8 +109,8 @@ export default async function LobbyPage({ searchParams }: { searchParams?: { err
   const sessionCreatedTime = getJwtCreationTime(currentSession.access_token);
   const lastLoginTime = profile.last_login_at ? new Date(profile.last_login_at) : null;
   
-  // 添加1秒容差，避免由于时间同步或处理延迟导致的误判
-  const tolerance = 1000; // 1秒
+  // 添加3秒容差，避免由于时间同步或处理延迟导致的误判
+  const tolerance = 3000; // 3秒
   
   if (lastLoginTime && sessionCreatedTime) {
     // 计算时间差（毫秒）
