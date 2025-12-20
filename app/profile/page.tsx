@@ -67,20 +67,20 @@ export default async function ProfilePage() {
       if (!accountExpiresAt && profile?.access_key_id) {
         console.log(`[ProfilePage] profiles 表中无有效期，尝试通过 access_key_id 查询密钥表:`, profile.access_key_id);
         
-        const { data: keyData, error: keyError } = await supabase
-          .from("access_keys")
-          .select("account_valid_for_days, key_code, created_at as key_created_at")
-          .eq("id", profile.access_key_id)
-          .maybeSingle();
+      const { data: keyData, error: keyError } = await supabase
+  .from("access_keys")
+  .select("account_valid_for_days, key_code, created_at") // 移除别名，直接使用字段名
+  .eq("id", profile.access_key_id)
+  .maybeSingle();
 
-        if (keyError) {
-          console.error('[ProfilePage] 查询关联密钥失败:', keyError);
-        } else {
-          console.log('[ProfilePage] 关联密钥查询结果:', keyData);
-        }
+if (keyError) {
+  console.error('[ProfilePage] 查询关联密钥失败:', keyError);
+} else {
+  console.log('[ProfilePage] 关联密钥查询结果:', keyData);
+}
 
-        // 如果找到密钥且有有效期天数，结合 profile 的创建时间进行计算
-        if (keyData?.account_valid_for_days && profile?.created_at) {
+// 如果找到密钥且有有效期天数，结合 profile 的创建时间进行计算
+if (keyData?.account_valid_for_days && profile?.created_at) {
           const createdDate = new Date(profile.created_at);
           const expiryDate = new Date(createdDate);
           expiryDate.setDate(expiryDate.getDate() + keyData.account_valid_for_days);
