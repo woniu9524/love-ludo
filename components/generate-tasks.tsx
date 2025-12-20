@@ -6,12 +6,20 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Sparkles, X, CheckCircle2 } from "lucide-react";
+import { Sparkles, X, CheckCircle2, AlertTriangle, RefreshCw } from "lucide-react";
 import { bulkInsertTasks } from "@/app/themes/actions";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 
 type Suggestion = { description: string; type?: string; order_index?: number };
+
+// 使用统计类型
+interface UsageStats {
+  dailyUsed: number;
+  monthlyUsed: number;
+  dailyRemaining: number;
+  monthlyRemaining: number;
+}
 
 export default function GenerateTasksSection({ themeId, themeTitle, themeDescription, inline = false }: { themeId: string; themeTitle: string; themeDescription?: string | null; inline?: boolean }) {
   const [showModal, setShowModal] = useState(false);
@@ -23,6 +31,15 @@ export default function GenerateTasksSection({ themeId, themeTitle, themeDescrip
   const [customRequirement, setCustomRequirement] = useState("");
   const [preferences, setPreferences] = useState<{ gender?: string; kinks?: string[] }>({});
   const [mounted, setMounted] = useState(false);
+  
+  // ============ 【新增】使用统计状态 ============
+  const [usageStats, setUsageStats] = useState<UsageStats>({
+    dailyUsed: 0,
+    monthlyUsed: 0,
+    dailyRemaining: 10,
+    monthlyRemaining: 120
+  });
+  const [loadingStats, setLoadingStats] = useState(false);
 
   useEffect(() => {
     const fetchPreferences = async () => {
@@ -43,11 +60,35 @@ export default function GenerateTasksSection({ themeId, themeTitle, themeDescrip
     setMounted(true);
   }, []);
 
-  const openModal = () => {
+  // ============ 【新增】获取使用统计 ============
+  const fetchUsageStats = async () => {
+    setLoadingStats(true);
+    try {
+      const res = await fetch("/api/ai/usage-stats");
+      if (res.ok) {
+        const data = await res.json();
+        setUsageStats({
+          dailyUsed: data.dailyUsed || 0,
+          monthlyUsed: data.monthlyUsed || 0,
+          dailyRemaining: Math.max(0, 10 - (data.dailyUsed || 0)),
+          monthlyRemaining: Math.max(0, 120 - (data.monthlyUsed || 0))
+        });
+      }
+    } catch (error) {
+      console.error("获取使用统计失败:", error);
+    } finally {
+      setLoadingStats(false);
+    }
+  };
+
+  const openModal = async () => {
     setShowModal(true);
     setError(null);
     setSuggestions([]);
     setSelected({});
+    
+    // ============ 【新增】打开模态框时获取使用统计 ============
+    await fetchUsageStats();
   };
 
   const closeModal = () => {
@@ -56,6 +97,17 @@ export default function GenerateTasksSection({ themeId, themeTitle, themeDescrip
   };
 
   const generate = async () => {
+    // ============ 【新增】检查剩余次数（前端预检查） ============
+    if (usageStats.dailyRemaining <= 0) {
+      setError("今日AI使用次数已达上限（10次/天），请明天再试");
+      return;
+    }
+    
+    if (usageStats.monthlyRemaining <= 0) {
+      setError("本月AI使用次数已达上限（120次/月）");
+      return;
+    }
+
     setLoading(true);
     setError(null);
     try {
@@ -69,11 +121,43 @@ export default function GenerateTasksSection({ themeId, themeTitle, themeDescrip
           customRequirement,
         }),
       });
+      
       const json = await res.json();
-      if (!res.ok) throw new Error(json?.error || "生成失败");
+      
+      if (!res.ok) {
+        // ============ 【新增】处理使用次数限制错误 ============
+        if (res.status === 429) {
+          setError(json?.error || "使用次数已用完");
+          
+          // 更新使用统计
+          if (json.details) {
+            setUsageStats({
+              dailyUsed: json.details.daily.used,
+              monthlyUsed: json.details.monthly.used,
+              dailyRemaining: 10 - json.details.daily.used,
+              monthlyRemaining: 120 - json.details.monthly.used
+            });
+          }
+          return;
+        }
+        
+        throw new Error(json?.error || "生成失败");
+      }
+      
       setSuggestions(json.tasks || []);
       const initialSelection = Object.fromEntries((json.tasks || []).map((_: any, i: number) => [i, true]));
       setSelected(initialSelection);
+      
+      // ============ 【新增】更新使用统计 ============
+      if (json.usage) {
+        setUsageStats({
+          dailyUsed: json.usage.dailyUsed,
+          monthlyUsed: json.usage.monthlyUsed,
+          dailyRemaining: json.usage.dailyRemaining,
+          monthlyRemaining: json.usage.monthlyRemaining
+        });
+      }
+      
     } catch (e: any) {
       setError(e?.message || "生成失败");
     } finally {
@@ -119,6 +203,17 @@ export default function GenerateTasksSection({ themeId, themeTitle, themeDescrip
   const hasGender = !!preferences.gender;
   const hasKinks = Array.isArray(preferences.kinks) && preferences.kinks.length > 0;
   const preferencesEmpty = !hasGender || !hasKinks;
+  
+  // ============ 【新增】计算进度条百分比 ============
+  const dailyPercentage = Math.min(100, (usageStats.dailyUsed / 10) * 100);
+  const monthlyPercentage = Math.min(100, (usageStats.monthlyUsed / 120) * 100);
+  
+  // ============ 【新增】检查是否接近限制 ============
+  const isNearDailyLimit = usageStats.dailyRemaining <= 2;
+  const isNearMonthlyLimit = usageStats.monthlyRemaining <= 10;
+  const isOverDailyLimit = usageStats.dailyRemaining <= 0;
+  const isOverMonthlyLimit = usageStats.monthlyRemaining <= 0;
+  const canGenerate = !isOverDailyLimit && !isOverMonthlyLimit;
 
   return (
     <>
@@ -127,9 +222,15 @@ export default function GenerateTasksSection({ themeId, themeTitle, themeDescrip
           type="button"
           onClick={openModal}
           className="gradient-primary glow-pink text-white flex items-center space-x-2"
+          disabled={!canGenerate} // 【新增】禁用按钮
         >
           <Sparkles className="w-4 h-4" />
           <span>AI 生成任务</span>
+          {isNearDailyLimit && (
+            <span className="text-xs bg-yellow-500/20 text-yellow-300 px-2 py-0.5 rounded-full">
+              仅剩{usageStats.dailyRemaining}次
+            </span>
+          )}
         </Button>
       ) : (
         <div className="glass rounded-2xl p-5">
@@ -142,12 +243,75 @@ export default function GenerateTasksSection({ themeId, themeTitle, themeDescrip
           <p className="text-sm text-gray-400 mb-4">
             基于主题和个人偏好，快速生成符合情侣互动的任务列表
           </p>
+          
+          {/* ============ 【新增】使用统计卡片 ============ */}
+          <div className="mb-4 bg-gradient-to-br from-gray-800/50 to-gray-900/50 rounded-xl p-3 border border-white/10">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs text-gray-400">AI使用统计</span>
+              <button
+                onClick={fetchUsageStats}
+                disabled={loadingStats}
+                className="p-1 hover:bg-white/10 rounded-lg transition-colors"
+              >
+                <RefreshCw className={`w-3 h-3 text-gray-400 ${loadingStats ? 'animate-spin' : ''}`} />
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <div className="flex justify-between items-center mb-1">
+                  <span className="text-xs text-gray-400">今日</span>
+                  <span className={`text-xs font-medium ${isNearDailyLimit ? 'text-yellow-400' : 'text-green-400'}`}>
+                    {usageStats.dailyRemaining}/10
+                  </span>
+                </div>
+                <div className="h-1.5 bg-gray-700 rounded-full overflow-hidden">
+                  <div 
+                    className={`h-full transition-all duration-500 ${
+                      dailyPercentage >= 100 ? 'bg-red-500' : 
+                      dailyPercentage >= 80 ? 'bg-yellow-500' : 'bg-green-500'
+                    }`}
+                    style={{ width: `${dailyPercentage}%` }}
+                  />
+                </div>
+              </div>
+              <div>
+                <div className="flex justify-between items-center mb-1">
+                  <span className="text-xs text-gray-400">本月</span>
+                  <span className={`text-xs font-medium ${isNearMonthlyLimit ? 'text-yellow-400' : 'text-blue-400'}`}>
+                    {usageStats.monthlyRemaining}/120
+                  </span>
+                </div>
+                <div className="h-1.5 bg-gray-700 rounded-full overflow-hidden">
+                  <div 
+                    className={`h-full transition-all duration-500 ${
+                      monthlyPercentage >= 100 ? 'bg-red-500' : 
+                      monthlyPercentage >= 90 ? 'bg-yellow-500' : 'bg-blue-500'
+                    }`}
+                    style={{ width: `${monthlyPercentage}%` }}
+                  />
+                </div>
+              </div>
+            </div>
+            {isNearDailyLimit && (
+              <div className="mt-2 text-xs text-yellow-400 flex items-center">
+                <AlertTriangle className="w-3 h-3 mr-1" />
+                今日剩余次数较少
+              </div>
+            )}
+          </div>
+          
           <Button
             onClick={openModal}
             className="w-full gradient-primary glow-pink flex items-center justify-center space-x-2"
+            disabled={!canGenerate} // 【新增】禁用按钮
           >
             <Sparkles className="w-4 h-4" />
             <span>开始生成</span>
+            {isOverDailyLimit && (
+              <span className="text-xs bg-red-500/20 text-red-300 px-2 py-0.5 rounded-full ml-2">
+                今日已用完
+              </span>
+            )}
           </Button>
         </div>
       )}
@@ -163,6 +327,50 @@ export default function GenerateTasksSection({ themeId, themeTitle, themeDescrip
               >
                 <X className="w-5 h-5" />
               </button>
+            </div>
+
+            {/* ============ 【新增】模态框中的使用统计 ============ */}
+            <div className="mb-4 p-4 bg-gradient-to-br from-gray-800/50 to-gray-900/50 rounded-xl border border-white/10">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-sm font-medium">剩余次数</span>
+                <button
+                  onClick={fetchUsageStats}
+                  disabled={loadingStats}
+                  className="p-1 hover:bg-white/10 rounded-lg transition-colors"
+                >
+                  <RefreshCw className={`w-3 h-3 text-gray-400 ${loadingStats ? 'animate-spin' : ''}`} />
+                </button>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="text-center">
+                  <div className={`text-2xl font-bold ${
+                    isNearDailyLimit ? 'text-yellow-400' : 'text-green-400'
+                  }`}>
+                    {usageStats.dailyRemaining}
+                  </div>
+                  <div className="text-xs text-gray-400 mt-1">今日剩余</div>
+                  <div className="text-xs text-gray-500 mt-1">
+                    已用 {usageStats.dailyUsed}/10
+                  </div>
+                </div>
+                <div className="text-center">
+                  <div className={`text-2xl font-bold ${
+                    isNearMonthlyLimit ? 'text-yellow-400' : 'text-blue-400'
+                  }`}>
+                    {usageStats.monthlyRemaining}
+                  </div>
+                  <div className="text-xs text-gray-400 mt-1">本月剩余</div>
+                  <div className="text-xs text-gray-500 mt-1">
+                    已用 {usageStats.monthlyUsed}/120
+                  </div>
+                </div>
+              </div>
+              {isNearDailyLimit && (
+                <div className="mt-3 text-xs text-yellow-400 flex items-center justify-center">
+                  <AlertTriangle className="w-3 h-3 mr-1" />
+                  今日剩余次数较少，请合理安排使用
+                </div>
+              )}
             </div>
 
             {suggestions.length === 0 ? (
@@ -222,7 +430,7 @@ export default function GenerateTasksSection({ themeId, themeTitle, themeDescrip
                   </Button>
                   <Button
                     onClick={generate}
-                    disabled={loading}
+                    disabled={loading || !canGenerate}
                     className="flex-1 gradient-primary glow-pink"
                   >
                     {loading ? "生成中..." : "生成任务"}
