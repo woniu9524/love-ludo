@@ -51,7 +51,7 @@ export default function RenewPage() {
     setMessage(null);
 
     try {
-      const response = await fetch('/auth/renew-account', {
+      const response = await fetch('/api/auth/renew-account', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ keyCode: licenseKey.trim().toUpperCase() }),
