@@ -1,6 +1,5 @@
 // 简化测试版
-import { NextRequest, NextResponse } from 'next/server';
-
+import { createRouteHandlerClient } from '@supabase/ssr'; 
 export async function POST(request: NextRequest) {
   console.log('注册API被调用');
   return NextResponse.json({ 
