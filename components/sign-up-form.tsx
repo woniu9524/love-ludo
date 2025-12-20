@@ -54,18 +54,37 @@ export function SignUpForm({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          email,
-          password,
-          keyCode: licenseKey.trim().toUpperCase(), // 变量名变了，但API字段名keyCode不变
+          email: email.trim(),
+          password: password.trim(),
+          keyCode: licenseKey.trim().toUpperCase(),
         }),
       });
 
-      const result = await signUpResponse.json();
+      // ============ 核心修复：在解析JSON前先检查状态 ============
+      // 1. 检查HTTP响应状态码（404, 500等）
       if (!signUpResponse.ok) {
-        throw new Error(result.error || '注册失败：密钥无效或已被使用');
+        // 2. 检查服务器返回的是什么类型的内容
+        const contentType = signUpResponse.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          // 如果是JSON，解析它并抛出错误消息
+          const errorData = await signUpResponse.json();
+          throw new Error(errorData.error || `注册失败 (${signUpResponse.status})`);
+        } else {
+          // 如果不是JSON（比如404的HTML页面），读取文本内容
+          const errorText = await signUpResponse.text();
+          // 简化和净化错误文本，避免显示整个HTML
+          const cleanError = errorText.includes('404') 
+            ? '注册接口未找到(404)，请联系管理员检查服务状态。' 
+            : `服务器错误 (${signUpResponse.status}): ${errorText.substring(0, 100)}...`;
+          throw new Error(cleanError);
+        }
       }
+      // ============ 核心修复结束 ============
 
-      // ============ 你的原有成功逻辑（完全保留） ============
+      // 3. 只有状态码是200-299时，才安全地解析JSON
+      const result = await signUpResponse.json();
+
+      // ============ 您的原有成功逻辑（完全保留） ============
       try {
         let attempts = 0;
         while (attempts < 5) {
@@ -96,7 +115,8 @@ export function SignUpForm({
         router.replace("/login");
       }
     } catch (error: unknown) {
-      setError(error instanceof Error ? error.message : "注册过程中发生错误");
+      // 这里捕获到的错误信息现在会是清晰的中文提示，而不是"Unexpected end of JSON input"
+      setError(error instanceof Error ? error.message : "注册过程中发生未知错误");
     } finally {
       setIsLoading(false);
     }
@@ -105,7 +125,7 @@ export function SignUpForm({
   return (
     <div className={cn("", className)} {...props}>
       <form onSubmit={handleSignUp} className="space-y-4">
-        {/* === 修改：文字全部从“邀请码”改为“密钥” === */}
+        {/* === 修改：文字全部从"邀请码"改为"密钥" === */}
         <div>
           <Label htmlFor="licenseKey" className="block text-sm text-gray-300 mb-2">
             产品密钥 <span className="text-red-500">*</span>
