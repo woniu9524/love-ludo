@@ -84,22 +84,19 @@ export function SignUpForm({
       // 3. 只有状态码是200-299时，才安全地解析JSON
       const result = await signUpResponse.json();
 
-      // ============ 简化成功逻辑（已修改部分） ============
-      try {
-        // 等待一小段时间，让用户创建完成
-        await new Promise((r) => setTimeout(r, 1000));
-        
-        // 直接重定向到登录页面
-        if (isRandom) {
-          router.push("/lobby");
-        } else {
-          router.push("/login");
-        }
-      } catch (error) {
-        console.error("重定向失败:", error);
-        // 如果重定向失败，刷新页面
-        window.location.href = "/login";
-      }
+    // ============ 稳定的成功处理逻辑 ============
+// 1. 显示成功消息，停止加载状态
+setError('✅ 注册成功！请使用刚才的邮箱和密码登录。');
+setIsLoading(false);
+
+// 2. 使用最可靠的客户端重定向，跳转到登录页
+setTimeout(() => {
+  // 注意：这里移除了对 isRandom 的判断，统一跳转到登录页
+  window.location.href = '/login';
+  // 如果希望登录后自动跳回大厅，可以传递一个参数：
+  // window.location.href = '/login?redirect=/lobby';
+}, 1200);
+// ============ 替换结束 ============
     } catch (error: unknown) {
       // 这里捕获到的错误信息现在会是清晰的中文提示，而不是"Unexpected end of JSON input"
       setError(error instanceof Error ? error.message : "注册过程中发生未知错误");
