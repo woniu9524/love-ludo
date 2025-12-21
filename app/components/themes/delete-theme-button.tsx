@@ -1,17 +1,58 @@
 // /app/components/themes/delete-theme-button.tsx
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Trash2, Loader2, AlertTriangle, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { deleteTheme } from '@/app/themes/actions';
 import { useRouter } from 'next/navigation';
-import Portal from '@/components/ui/portal';
 
 interface DeleteThemeButtonProps {
   themeId: string;
   themeTitle: string;
   onDelete?: () => void;
+}
+
+// 创建一个简单的Portal组件，直接在这个文件中定义
+function Portal({ children }: { children: React.ReactNode }) {
+  const [mounted, setMounted] = useState(false);
+  const portalRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    setMounted(true);
+    
+    // 创建或获取portal容器
+    let portalContainer = document.getElementById('modal-portal');
+    if (!portalContainer) {
+      portalContainer = document.createElement('div');
+      portalContainer.id = 'modal-portal';
+      portalContainer.style.position = 'fixed';
+      portalContainer.style.top = '0';
+      portalContainer.style.left = '0';
+      portalContainer.style.zIndex = '9999';
+      portalContainer.style.pointerEvents = 'none';
+      document.body.appendChild(portalContainer);
+    }
+    
+    portalRef.current = portalContainer as HTMLDivElement;
+    
+    return () => {
+      if (portalRef.current && portalRef.current.childElementCount === 0) {
+        portalRef.current.remove();
+      }
+    };
+  }, []);
+
+  if (!mounted || !portalRef.current) return null;
+
+  // 使用React的createPortal
+  const { createPortal } = require('react-dom');
+  return createPortal(
+    <div style={{ pointerEvents: 'auto' }}>
+      {children}
+    </div>,
+    portalRef.current
+  );
 }
 
 export default function DeleteThemeButton({ themeId, themeTitle, onDelete }: DeleteThemeButtonProps) {
@@ -88,7 +129,7 @@ export default function DeleteThemeButton({ themeId, themeTitle, onDelete }: Del
 
   return (
     <>
-      {/* 删除按钮 - 阻止事件冒泡 */}
+      {/* 删除按钮 */}
       <Button
         onClick={handleDeleteClick}
         variant="ghost"
@@ -99,32 +140,33 @@ export default function DeleteThemeButton({ themeId, themeTitle, onDelete }: Del
         <Trash2 className="w-4 h-4" />
       </Button>
 
-      {/* 使用 Portal 渲染弹窗到 body 层级 */}
+      {/* 使用Portal渲染弹窗 */}
       {showDialog && (
         <Portal>
           <div 
-            className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
-            onClick={handleOverlayClick}
+            className="fixed inset-0 flex items-center justify-center p-4"
             style={{
-              zIndex: 9999,
               position: 'fixed',
               top: 0,
               left: 0,
               right: 0,
               bottom: 0,
+              backgroundColor: 'rgba(0, 0, 0, 0.7)',
+              backdropFilter: 'blur(4px)',
+              zIndex: 9999,
             }}
+            onClick={handleOverlayClick}
           >
             {/* 弹窗内容 */}
             <div 
               className="relative w-full max-w-md bg-gradient-to-br from-gray-900 to-gray-950 border border-gray-700/50 rounded-2xl shadow-2xl overflow-hidden"
-              onClick={(e) => e.stopPropagation()}
               style={{
-                zIndex: 10000,
                 maxHeight: '90vh',
                 overflowY: 'auto',
                 margin: 'auto',
-                animation: 'fadeIn 0.2s ease-out forwards',
+                zIndex: 10000,
               }}
+              onClick={(e) => e.stopPropagation()}
             >
               {/* 关闭按钮 */}
               <button
@@ -227,20 +269,6 @@ export default function DeleteThemeButton({ themeId, themeTitle, onDelete }: Del
           </div>
         </Portal>
       )}
-
-      {/* 动画样式 */}
-      <style jsx global>{`
-        @keyframes fadeIn {
-          from {
-            opacity: 0;
-            transform: scale(0.95) translateY(-10px);
-          }
-          to {
-            opacity: 1;
-            transform: scale(1) translateY(0);
-          }
-        }
-      `}</style>
     </>
   );
 }
