@@ -171,11 +171,19 @@ export async function middleware(request: NextRequest) {
       // 6.2 检查是否是管理员（管理员玩游戏的场景）
       const isAdmin = isAdminEmail(user.email);
       
-      if (isAdmin) {
-        console.log(`[中间件] 管理员玩游戏，跳过复杂验证: ${user.email}`);
-        // 管理员跳过会员过期和多设备验证
-        return response;
-      }
+   if (isAdmin) {
+  console.log(`[中间件] 管理员玩游戏: ${user.email}`);
+  
+  // 管理员玩游戏，跳过会员过期和多设备验证
+  // 但如果是管理员访问管理员页面，应该继续验证
+  if (currentPath.startsWith('/admin')) {
+    // 已经在上面的管理员路径处理过了，这里不会执行
+    return response;
+  }
+  
+  // 管理员玩游戏，直接放行
+  return response;
+}
       
       // 6.3 普通用户：获取用户资料
       const { data: profile } = await supabase
