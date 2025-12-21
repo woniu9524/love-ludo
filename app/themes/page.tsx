@@ -1,10 +1,10 @@
-// /app/themes/page.tsx - 修复版本
+// /app/themes/page.tsx - 优化版本
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import Link from "next/link";
 import { listMyThemes } from "./actions";
-import { Plus, Layers, Edit } from "lucide-react";
+import { Plus, Layers, Edit, Calendar, Hash, Clock, ChevronRight, Sparkles } from "lucide-react";
 import DeleteThemeButton from '@/app/components/themes/delete-theme-button';
 
 // 辅助函数：从JWT中解析创建时间（安全版本）
@@ -133,91 +133,194 @@ export default async function ThemesPage() {
   // 7. 原有的业务逻辑 - 获取主题数据
   const { data: themes } = await listMyThemes();
 
+  // 计算会员剩余天数
+  const calculateRemainingDays = (expiryDate: string) => {
+    const now = new Date();
+    const expiry = new Date(expiryDate);
+    const diffMs = expiry.getTime() - now.getTime();
+    return Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+  };
+
+  const remainingDays = profile?.account_expires_at ? 
+    calculateRemainingDays(profile.account_expires_at) : 0;
+
   return (
     <>
       <div className="max-w-md mx-auto min-h-svh flex flex-col pb-24">
-        {/* 顶部标题区域 - 简约风格 */}
+        {/* 顶部标题区域 - 优化设计 */}
         <div className="px-6 pt-8 pb-6">
-          <h2 className="text-3xl font-bold text-white mb-6">主题库</h2>
-          
-          {/* 会员状态提示 */}
-          <div className="mb-4 p-3 glass rounded-xl">
-            <p className="text-sm text-green-400 text-center">
-              会员有效期至：{profile?.account_expires_at ? 
-                new Date(profile.account_expires_at).toLocaleDateString('zh-CN') : 
-                '未设置'}
-            </p>
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-3xl font-bold text-white mb-1">主题库</h2>
+              <p className="text-gray-400 text-sm">创建和管理游戏主题</p>
+            </div>
+            <div className="relative">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-pink/20 to-brand-rose/20 flex items-center justify-center">
+                <Sparkles className="w-5 h-5 text-brand-pink" />
+              </div>
+            </div>
           </div>
           
-          {/* 创建主题按钮 */}
+          {/* 会员状态卡片 - 优化设计 */}
+          <div className="mb-6 p-4 bg-gradient-to-r from-gray-800/60 to-gray-900/60 backdrop-blur-lg border border-gray-700/50 rounded-2xl">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-green-500/20 to-emerald-500/20 flex items-center justify-center">
+                  <Calendar className="w-5 h-5 text-green-400" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-300">会员有效期</p>
+                  <p className="text-lg font-semibold text-white">
+                    {profile?.account_expires_at ? 
+                      new Date(profile.account_expires_at).toLocaleDateString('zh-CN') : 
+                      '未设置'}
+                  </p>
+                </div>
+              </div>
+              <div className="text-right">
+                <div className={`px-3 py-1 rounded-full ${remainingDays > 7 ? 'bg-green-500/20 text-green-400' : remainingDays > 3 ? 'bg-yellow-500/20 text-yellow-400' : 'bg-red-500/20 text-red-400'}`}>
+                  <span className="text-sm font-medium">
+                    {remainingDays > 0 ? `剩余${remainingDays}天` : '已过期'}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          {/* 创建主题按钮 - 优化设计 */}
           <Link
             href="/themes/new"
-            className="flex items-center justify-center space-x-2 w-full h-12 bg-gradient-to-r from-pink-500 to-purple-600 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-200 active:scale-[0.98] no-underline mb-6"
+            className="group relative flex items-center justify-center space-x-2 w-full h-14 bg-gradient-to-r from-brand-pink via-brand-rose to-brand-pink rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 active:scale-[0.98] no-underline mb-8 overflow-hidden"
           >
-            <Plus className="w-5 h-5 text-white" />
-            <span className="text-white font-semibold">创建新主题</span>
+            {/* 背景动画 */}
+            <div className="absolute inset-0 bg-gradient-to-r from-brand-pink/0 via-white/10 to-brand-pink/0 group-hover:translate-x-full transition-transform duration-700"></div>
+            
+            <div className="relative flex items-center space-x-3">
+              <div className="w-8 h-8 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
+                <Plus className="w-4 h-4 text-white" />
+              </div>
+              <span className="text-white font-semibold text-base">创建新主题</span>
+            </div>
           </Link>
 
+          {/* 主题列表标题 */}
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-white">我的主题</h3>
+            <div className="flex items-center space-x-2">
+              <span className="text-xs text-gray-400 px-2 py-1 bg-white/5 rounded-lg">
+                共 {themes.length} 个主题
+              </span>
+            </div>
+          </div>
+
           {/* 主题列表 */}
-          <div className="space-y-3">
+          <div className="space-y-4">
             {themes.length === 0 && (
-              <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-8 text-center">
-                <div className="w-16 h-16 mx-auto mb-4 bg-white/5 rounded-2xl flex items-center justify-center">
-                  <Layers className="w-8 h-8 text-white/30" />
+              <div className="relative bg-gradient-to-br from-gray-800/50 to-gray-900/50 backdrop-blur-lg border border-gray-700/50 rounded-2xl p-8 text-center overflow-hidden">
+                {/* 装饰元素 */}
+                <div className="absolute top-0 left-0 w-32 h-32 bg-gradient-to-br from-brand-pink/5 to-brand-rose/5 rounded-full -translate-x-1/2 -translate-y-1/2"></div>
+                <div className="absolute bottom-0 right-0 w-32 h-32 bg-gradient-to-br from-brand-rose/5 to-brand-pink/5 rounded-full translate-x-1/2 translate-y-1/2"></div>
+                
+                <div className="relative">
+                  <div className="w-20 h-20 mx-auto mb-4 bg-gradient-to-br from-gray-800/50 to-gray-900/50 border border-gray-700/50 rounded-2xl flex items-center justify-center">
+                    <Layers className="w-10 h-10 text-gray-400" />
+                  </div>
+                  <h4 className="text-xl font-bold text-white mb-2">还没有主题</h4>
+                  <p className="text-gray-400 mb-6">创建一个主题，开始设计游戏任务吧</p>
+                  <Link
+                    href="/themes/new"
+                    className="inline-flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-brand-pink to-brand-rose text-white font-medium rounded-xl hover:opacity-90 transition-opacity"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>立即创建</span>
+                  </Link>
                 </div>
-                <p className="text-white/70 font-medium mb-1">暂无主题</p>
-                <p className="text-sm text-white/40">点击上方按钮创建你的第一个主题</p>
               </div>
             )}
 
             {themes.map((t) => (
               <div 
                 key={t.id} 
-                className="relative bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-5 hover:bg-white/10 transition-all duration-200 group"
+                className="relative bg-gradient-to-br from-gray-800/40 to-gray-900/40 backdrop-blur-lg border border-gray-700/50 rounded-2xl p-5 hover:border-gray-600/50 transition-all duration-300 group hover:shadow-xl hover:scale-[1.02]"
               >
-                {/* 操作按钮 - 悬浮显示 */}
-                <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+                {/* 背景装饰 */}
+                <div className="absolute inset-0 bg-gradient-to-br from-brand-pink/5 via-transparent to-brand-rose/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-2xl"></div>
+                
+                {/* 操作按钮 - 优化设计 */}
+                <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-y-2 group-hover:translate-y-0 flex items-center gap-2">
                   <Link
                     href={`/themes/${t.id}`}
-                    className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
+                    className="p-2 rounded-xl bg-white/10 hover:bg-white/20 backdrop-blur-sm transition-all hover:scale-105 active:scale-95"
                     aria-label="编辑主题"
                   >
-                    <Edit className="w-3.5 h-3.5 text-white" />
+                    <Edit className="w-4 h-4 text-white" />
                   </Link>
                   
-                  {/* 删除按钮 - 客户端组件 */}
+                  {/* 删除按钮 */}
                   <DeleteThemeButton themeId={t.id} themeTitle={t.title} />
                 </div>
                 
-                {/* 主题内容 - 可点击区域 */}
+                {/* 主题内容 */}
                 <Link 
                   href={`/themes/${t.id}`}
-                  className="block no-underline"
+                  className="block no-underline relative"
                 >
-                  <div className="flex items-start justify-between mb-2 pr-8">
-                    <div className="flex-1 min-w-0">
-                      <h4 className="font-semibold text-base text-white mb-1 truncate">{t.title}</h4>
-                      <p className="text-sm text-white/50">{t.task_count ?? 0} 个任务</p>
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex-1 min-w-0 pr-12">
+                      <h4 className="text-lg font-bold text-white mb-1 truncate group-hover:text-brand-pink transition-colors">{t.title}</h4>
+                      {t.description && (
+                        <p className="text-sm text-gray-400 line-clamp-2 mt-2">
+                          {t.description}
+                        </p>
+                      )}
                     </div>
-                    <svg className="w-5 h-5 text-white/40 flex-shrink-0 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
                   </div>
-                  {t.description && (
-                    <p className="text-sm text-white/40 line-clamp-2 mt-2">
-                      {t.description}
-                    </p>
-                  )}
+                  
+                  {/* 统计信息 */}
+                  <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-700/50">
+                    <div className="flex items-center space-x-4">
+                      <div className="flex items-center space-x-2">
+                        <Hash className="w-4 h-4 text-gray-400" />
+                        <span className="text-sm text-gray-300">{t.task_count ?? 0} 个任务</span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Clock className="w-4 h-4 text-gray-400" />
+                        <span className="text-sm text-gray-300">
+                          {new Date(t.created_at).toLocaleDateString('zh-CN')}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    {/* 查看详情按钮 */}
+                    <div className="flex items-center space-x-1 text-brand-pink">
+                      <span className="text-sm font-medium">查看详情</span>
+                      <ChevronRight className="w-4 h-4" />
+                    </div>
+                  </div>
                 </Link>
               </div>
             ))}
           </div>
           
-          {/* 提示信息 */}
+          {/* 底部提示信息 */}
           {themes.length > 0 && (
-            <div className="mt-6 text-center text-xs text-gray-500">
-              <p>提示：将鼠标悬停在主题卡片上可以显示操作按钮</p>
-              <p className="mt-1">删除主题会同时删除该主题下的所有任务</p>
+            <div className="mt-8">
+              <div className="bg-gradient-to-r from-gray-800/30 to-gray-900/30 backdrop-blur-sm border border-gray-700/30 rounded-xl p-4">
+                <div className="flex items-start space-x-3">
+                  <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500/20 to-cyan-500/20 flex items-center justify-center flex-shrink-0">
+                    <Sparkles className="w-4 h-4 text-blue-400" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-medium text-white mb-1">使用提示</h4>
+                    <ul className="text-xs text-gray-400 space-y-1">
+                      <li>• 鼠标悬停在主题卡片上可以显示操作按钮</li>
+                      <li>• 点击"查看详情"可以编辑主题和任务</li>
+                      <li>• 删除主题会同时删除该主题下的所有任务</li>
+                      <li>• 每个主题最多可添加20个任务</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
         </div>
