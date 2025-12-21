@@ -1,120 +1,120 @@
-// /app/admin/page.tsx - Next.js 16 兼容版本
+// /app/admin/page.tsx - 使用全屏固定定位
 'use client';
 
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Mail, Lock, Key, Eye, EyeOff, Shield, AlertCircle, Loader2 } from 'lucide-react';
+import { Mail, Lock, Key, Shield, AlertCircle, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 
-// 创建内部组件，用于在Suspense中使用useSearchParams
 function AdminLoginForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [adminKey, setAdminKey] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [showAdminKey, setShowAdminKey] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [debugInfo, setDebugInfo] = useState<string>('');
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectTo = searchParams.get('redirect') || '/admin/dashboard';
 
-  // 动态创建和注入样式
+  // 强制设置全屏样式
   useEffect(() => {
-    // 创建样式元素
-    const styleElement = document.createElement('style');
-    styleElement.textContent = `
-      /* 管理员页面专用样式 */
-      .admin-login-page nav,
-      .admin-login-page footer,
-      .admin-login-page [role="navigation"],
-      .admin-login-page [class*="nav"],
-      .admin-login-page [class*="Nav"] {
-        display: none !important;
-      }
+    // 1. 隐藏所有导航栏和底部元素
+    const hideElements = () => {
+      // 找到并隐藏所有可能的导航元素
+      const selectors = [
+        'nav',
+        'footer',
+        '[class*="nav"]',
+        '[class*="Nav"]',
+        '[class*="bottom"]',
+        '[class*="Bottom"]',
+        '[class*="footer"]',
+        '[role="navigation"]',
+        'header'
+      ];
       
-      .admin-login-page body,
-      .admin-login-page html {
-        margin: 0 !important;
-        padding: 0 !important;
-        overflow: auto !important;
-      }
-      
-      .admin-login-page body {
-        background: linear-gradient(180deg, #0a0a12 0%, #12101a 50%, #1a0f1f 100%) !important;
-        background-attachment: fixed !important;
-        min-height: 100vh !important;
-      }
-      
-      .admin-login-page .fixed,
-      .admin-login-page .sticky,
-      .admin-login-page [class*="bottom"],
-      .admin-login-page [class*="Bottom"] {
-        display: none !important;
-      }
-    `;
-    
-    document.head.appendChild(styleElement);
-    
-    // 给 body 添加类名，用于样式作用域
-    document.body.classList.add('admin-login-page');
-    
-    // 清理函数
-    return () => {
-      document.head.removeChild(styleElement);
-      document.body.classList.remove('admin-login-page');
-    };
-  }, []);
-
-  // 调试：检查环境变量
-  useEffect(() => {
-    console.log('🔍 管理员登录页面加载');
-    console.log('NEXT_PUBLIC_ADMIN_KEY:', process.env.NEXT_PUBLIC_ADMIN_KEY ? '***已设置***' : '未设置');
-    
-    if (process.env.NODE_ENV === 'development') {
-      setDebugInfo(
-        `密钥配置: ${process.env.NEXT_PUBLIC_ADMIN_KEY ? '✅' : '❌'}, ` +
-        `重定向目标: ${redirectTo}`
-      );
-    }
-    
-    // 强制隐藏底部导航栏
-    const hideBottomNav = () => {
-      const bottomNavs = document.querySelectorAll('[class*="bottom-nav"], [class*="BottomNav"], [class*="nav"]');
-      bottomNavs.forEach(el => {
-        (el as HTMLElement).style.display = 'none';
-      });
-      
-      const allElements = document.querySelectorAll('*');
-      allElements.forEach(el => {
-        const className = el.className;
-        if (typeof className === 'string' && 
-            (className.includes('nav') || className.includes('Nav') || className.includes('bottom'))) {
+      selectors.forEach(selector => {
+        const elements = document.querySelectorAll(selector);
+        elements.forEach(el => {
           (el as HTMLElement).style.display = 'none';
-        }
-      });
-      
-      const fixedBottomElements = document.querySelectorAll('[style*="bottom"], [class*="fixed"], [class*="bottom"]');
-      fixedBottomElements.forEach(el => {
-        (el as HTMLElement).style.display = 'none';
+        });
       });
     };
     
-    // 立即执行一次
-    hideBottomNav();
+    // 2. 设置全屏样式
+    const setFullscreenStyles = () => {
+      // 设置 body 样式
+      document.body.style.position = 'fixed';
+      document.body.style.top = '0';
+      document.body.style.left = '0';
+      document.body.style.right = '0';
+      document.body.style.bottom = '0';
+      document.body.style.margin = '0';
+      document.body.style.padding = '0';
+      document.body.style.overflow = 'hidden';
+      document.body.style.backgroundColor = '#0a0a12';
+      
+      // 设置 html 样式
+      document.documentElement.style.height = '100%';
+      document.documentElement.style.overflow = 'hidden';
+      
+      // 设置根元素样式
+      const root = document.getElementById('__next');
+      if (root) {
+        root.style.height = '100%';
+        root.style.display = 'flex';
+        root.style.flexDirection = 'column';
+      }
+    };
     
-    // 延迟再次执行，确保DOM完全加载
-    setTimeout(hideBottomNav, 100);
-    setTimeout(hideBottomNav, 500);
-    setTimeout(hideBottomNav, 1000);
+    // 立即执行
+    hideElements();
+    setFullscreenStyles();
+    
+    // 延迟执行，确保DOM加载完成
+    setTimeout(hideElements, 100);
+    setTimeout(hideElements, 500);
+    setTimeout(hideElements, 1000);
     
     // 监听DOM变化
-    const observer = new MutationObserver(hideBottomNav);
-    observer.observe(document.body, { childList: true, subtree: true });
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach(() => {
+        hideElements();
+        setFullscreenStyles();
+      });
+    });
     
-    return () => observer.disconnect();
-  }, [redirectTo]);
+    observer.observe(document.body, { 
+      childList: true, 
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['style', 'class']
+    });
+    
+    return () => {
+      observer.disconnect();
+      // 恢复样式
+      document.body.style.position = '';
+      document.body.style.top = '';
+      document.body.style.left = '';
+      document.body.style.right = '';
+      document.body.style.bottom = '';
+      document.body.style.margin = '';
+      document.body.style.padding = '';
+      document.body.style.overflow = '';
+      document.body.style.backgroundColor = '';
+      
+      document.documentElement.style.height = '';
+      document.documentElement.style.overflow = '';
+      
+      const root = document.getElementById('__next');
+      if (root) {
+        root.style.height = '';
+        root.style.display = '';
+        root.style.flexDirection = '';
+      }
+    };
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -122,9 +122,6 @@ function AdminLoginForm() {
     setLoading(true);
 
     try {
-      console.log('🔐 开始管理员登录验证...');
-      
-      // 1. 验证管理员密钥
       const requiredAdminKey = process.env.NEXT_PUBLIC_ADMIN_KEY;
       
       if (!requiredAdminKey) {
@@ -135,9 +132,6 @@ function AdminLoginForm() {
         throw new Error('管理员密钥错误');
       }
 
-      console.log('✅ 管理员密钥验证通过');
-
-      // 2. 验证管理员邮箱
       const adminEmails = process.env.ADMIN_EMAILS?.split(',') || ['2200691917@qq.com'];
       const emailLower = email.trim().toLowerCase();
       const isAdmin = adminEmails.some(adminEmail => 
@@ -147,10 +141,7 @@ function AdminLoginForm() {
       if (!isAdmin) {
         throw new Error('非管理员邮箱');
       }
-      
-      console.log('✅ 管理员邮箱验证通过');
 
-      // 3. 登录 Supabase
       const { createBrowserClient } = await import('@supabase/ssr');
       const supabase = createBrowserClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -164,20 +155,14 @@ function AdminLoginForm() {
 
       if (signInError) throw signInError;
 
-      console.log('✅ Supabase登录成功');
-
-      // ⭐ 关键：设置管理员密钥验证标记cookie
       document.cookie = 'admin_key_verified=true; path=/admin; max-age=86400; SameSite=Strict';
       
-      // 等待cookie设置完成
       await new Promise(resolve => setTimeout(resolve, 300));
       
-      console.log('✅ 管理员登录成功，跳转到仪表板');
       router.push(redirectTo);
       router.refresh();
 
     } catch (err: any) {
-      console.error('❌ 管理员登录失败:', err);
       setError(err.message || '登录失败，请检查凭据');
     } finally {
       setLoading(false);
@@ -185,212 +170,151 @@ function AdminLoginForm() {
   };
 
   return (
-    <div className="w-full max-w-md mx-auto">
-      {/* 调试信息（仅开发环境显示） */}
-      {process.env.NODE_ENV === 'development' && debugInfo && (
-        <div className="mb-3 p-2 bg-slate-800/80 rounded-lg border border-slate-700/50 text-center">
-          <p className="text-xs text-slate-400">🔍 {debugInfo}</p>
+    <div 
+      className="flex items-center justify-center w-full h-full min-h-screen"
+      style={{
+        background: 'linear-gradient(180deg, #0a0a12 0%, #12101a 50%, #1a0f1f 100%)',
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        margin: 0,
+        padding: '1rem',
+        overflow: 'auto'
+      }}
+    >
+      <div className="w-full max-w-md">
+        <div className="text-center mb-8">
+          <div className="w-16 h-16 bg-gradient-to-br from-brand-pink to-brand-rose rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <Shield className="w-8 h-8 text-white" />
+          </div>
+          <h1 className="text-2xl font-bold text-white">系统管理员登录</h1>
+          <p className="text-gray-400">仅限授权管理员访问后台系统</p>
         </div>
-      )}
 
-      <div className="text-center mb-6 md:mb-8">
-        <div className="inline-flex items-center justify-center w-14 h-14 md:w-20 md:h-20 bg-gradient-to-br from-brand-pink to-brand-rose rounded-2xl md:rounded-3xl mb-3 md:mb-4 shadow-lg">
-          <Shield className="w-7 h-7 md:w-10 md:h-10 text-white" />
-        </div>
-        <h1 className="text-2xl md:text-3xl font-bold mb-1 md:mb-2 bg-gradient-to-r from-brand-pink via-brand-rose to-brand-pink bg-clip-text text-transparent">
-          系统管理员登录
-        </h1>
-        <p className="text-sm md:text-base text-gray-400">仅限授权管理员访问后台系统</p>
-      </div>
-
-      <div className="glass rounded-xl md:rounded-2xl p-4 md:p-6">
-        <form onSubmit={handleLogin} className="space-y-4 md:space-y-6">
-          {/* 邮箱输入 */}
-          <div>
-            <label className="block text-sm text-gray-300 mb-1 md:mb-2">
-              管理员邮箱
-            </label>
-            <div className="glass rounded-lg md:rounded-xl p-3 flex items-center space-x-2">
-              <Mail className="w-4 h-4 md:w-5 md:h-5 text-gray-400" />
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="输入管理员邮箱"
-                className="flex-1 bg-transparent border-none outline-none text-white placeholder-gray-500 focus-visible:ring-0 focus-visible:ring-offset-0 disabled:opacity-60 text-sm md:text-base"
-                required
-                disabled={loading}
-              />
-            </div>
-          </div>
-
-          {/* 密码输入 */}
-          <div>
-            <label className="block text-sm text-gray-300 mb-1 md:mb-2">
-              密码
-            </label>
-            <div className="glass rounded-lg md:rounded-xl p-3 flex items-center space-x-2">
-              <Lock className="w-4 h-4 md:w-5 md:h-5 text-gray-400" />
-              <input
-                type={showPassword ? "text" : "password"}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="输入密码"
-                className="flex-1 bg-transparent border-none outline-none text-white placeholder-gray-500 focus-visible:ring-0 focus-visible:ring-offset-0 disabled:opacity-60 text-sm md:text-base"
-                required
-                disabled={loading}
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                disabled={loading}
-                className="text-gray-400 hover:text-white transition-colors disabled:opacity-50 p-1"
-              >
-                {showPassword ? (
-                  <Eye className="w-4 h-4 md:w-5 md:h-5" />
-                ) : (
-                  <EyeOff className="w-4 h-4 md:w-5 md:h-5" />
-                )}
-              </button>
-            </div>
-          </div>
-
-          {/* 管理员密钥输入 */}
-          <div>
-            <label className="block text-sm text-gray-300 mb-1 md:mb-2">
-              管理员密钥
-              <span className="text-xs text-gray-500 ml-1">（必须输入正确的密钥）</span>
-            </label>
-            <div className="glass rounded-lg md:rounded-xl p-3 flex items-center space-x-2">
-              <Key className="w-4 h-4 md:w-5 md:h-5 text-gray-400" />
-              <input
-                type={showAdminKey ? "text" : "password"}
-                value={adminKey}
-                onChange={(e) => setAdminKey(e.target.value)}
-                placeholder="输入管理员密钥"
-                className="flex-1 bg-transparent border-none outline-none text-white placeholder-gray-500 focus-visible:ring-0 focus-visible:ring-offset-0 disabled:opacity-60 text-sm md:text-base"
-                required
-                disabled={loading}
-              />
-              <button
-                type="button"
-                onClick={() => setShowAdminKey(!showAdminKey)}
-                disabled={loading}
-                className="text-gray-400 hover:text-white transition-colors disabled:opacity-50 p-1"
-              >
-                {showAdminKey ? (
-                  <Eye className="w-4 h-4 md:w-5 md:h-5" />
-                ) : (
-                  <EyeOff className="w-4 h-4 md:w-5 md:h-5" />
-                )}
-              </button>
-            </div>
-            <div className="mt-1 md:mt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-1">
-              <span className="text-xs text-gray-500">
-                联系系统管理员获取密钥
-              </span>
-              <span className={`px-2 py-1 text-xs font-medium rounded self-start sm:self-auto ${
-                process.env.NEXT_PUBLIC_ADMIN_KEY 
-                  ? 'bg-green-500/20 text-green-400' 
-                  : 'bg-red-500/20 text-red-400'
-              }`}>
-                {process.env.NEXT_PUBLIC_ADMIN_KEY ? '密钥已配置' : '密钥未配置'}
-              </span>
-            </div>
-          </div>
-
-          {/* 错误提示 */}
-          {error && (
-            <div className="rounded-lg md:rounded-xl border border-red-500/30 bg-red-500/10 backdrop-blur p-3 md:p-4">
-              <div className="flex items-start md:items-center space-x-2 text-red-400">
-                <AlertCircle className="w-4 h-4 md:w-5 md:h-5 flex-shrink-0 mt-0.5 md:mt-0" />
-                <span className="text-sm leading-tight">{error}</span>
+        <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-6 border border-gray-700/50">
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div>
+              <label className="block text-sm text-gray-300 mb-2">管理员邮箱</label>
+              <div className="flex items-center bg-gray-900/50 rounded-lg p-3 border border-gray-700">
+                <Mail className="w-5 h-5 text-gray-400 mr-2" />
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="输入管理员邮箱"
+                  className="flex-1 bg-transparent text-white outline-none placeholder-gray-500"
+                  required
+                  disabled={loading}
+                />
               </div>
             </div>
-          )}
 
-          {/* 登录按钮 */}
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full gradient-primary py-3 md:py-3.5 rounded-lg md:rounded-xl font-semibold glow-pink transition-all hover:scale-[1.02] active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed disabled:hover:scale-100 text-white flex items-center justify-center text-sm md:text-base"
-          >
-            {loading ? (
-              <>
-                <Loader2 className="w-4 h-4 md:w-5 md:h-5 mr-2 animate-spin" />
-                验证中...
-              </>
-            ) : (
-              '进入后台管理系统'
+            <div>
+              <label className="block text-sm text-gray-300 mb-2">密码</label>
+              <div className="flex items-center bg-gray-900/50 rounded-lg p-3 border border-gray-700">
+                <Lock className="w-5 h-5 text-gray-400 mr-2" />
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="输入密码"
+                  className="flex-1 bg-transparent text-white outline-none placeholder-gray-500"
+                  required
+                  disabled={loading}
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm text-gray-300 mb-2">管理员密钥</label>
+              <div className="flex items-center bg-gray-900/50 rounded-lg p-3 border border-gray-700">
+                <Key className="w-5 h-5 text-gray-400 mr-2" />
+                <input
+                  type="password"
+                  value={adminKey}
+                  onChange={(e) => setAdminKey(e.target.value)}
+                  placeholder="输入管理员密钥"
+                  className="flex-1 bg-transparent text-white outline-none placeholder-gray-500"
+                  required
+                  disabled={loading}
+                />
+              </div>
+            </div>
+
+            {error && (
+              <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3">
+                <div className="flex items-center text-red-400">
+                  <AlertCircle className="w-5 h-5 mr-2" />
+                  <span className="text-sm">{error}</span>
+                </div>
+              </div>
             )}
-          </button>
-        </form>
 
-        {/* 底部链接 */}
-        <div className="mt-6 md:mt-8 pt-4 md:pt-6 border-t border-white/10">
-          <div className="text-center">
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-gradient-to-r from-brand-pink to-brand-rose text-white py-3 rounded-lg font-medium disabled:opacity-50 flex items-center justify-center hover:opacity-90 transition-opacity"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                  验证中...
+                </>
+              ) : (
+                '进入后台管理系统'
+              )}
+            </button>
+          </form>
+
+          <div className="mt-6 pt-4 border-t border-gray-700 text-center">
             <Link 
               href="/login" 
-              className="text-xs md:text-sm text-brand-pink hover:text-brand-rose transition-colors hover:underline"
+              className="text-sm text-brand-pink hover:text-brand-rose transition-colors"
             >
               返回普通用户登录
             </Link>
           </div>
         </div>
-      </div>
 
-      {/* 版本信息 */}
-      <div className="mt-4 md:mt-6 text-center">
-        <p className="text-xs text-gray-500">
-          Love Ludo 后台管理系统 v1.0 · 希夷游戏
-        </p>
-      </div>
-    </div>
-  );
-}
-
-// 加载中组件
-function LoadingSpinner() {
-  // 简化加载组件，不需要复杂的样式
-  return (
-    <div className="w-full max-w-md mx-auto">
-      <div className="text-center mb-6 md:mb-8">
-        <div className="inline-flex items-center justify-center w-14 h-14 md:w-20 md:h-20 bg-gradient-to-br from-brand-pink to-brand-rose rounded-2xl md:rounded-3xl mb-3 md:mb-4 shadow-lg">
-          <Shield className="w-7 h-7 md:w-10 md:h-10 text-white animate-pulse" />
-        </div>
-        <h1 className="text-2xl md:text-3xl font-bold mb-1 md:mb-2 bg-gradient-to-r from-brand-pink via-brand-rose to-brand-pink bg-clip-text text-transparent">
-          系统管理员登录
-        </h1>
-        <p className="text-sm md:text-base text-gray-400">加载中...</p>
-      </div>
-      
-      <div className="glass rounded-xl md:rounded-2xl p-6 flex items-center justify-center h-48 md:h-64">
-        <div className="flex flex-col items-center">
-          <Loader2 className="w-8 h-8 md:w-12 md:h-12 text-brand-pink animate-spin mb-3 md:mb-4" />
-          <p className="text-sm md:text-base text-gray-400">正在加载登录表单...</p>
+        <div className="mt-4 text-center">
+          <p className="text-xs text-gray-500">
+            Love Ludo 后台管理系统 v1.0 · 希夷游戏
+          </p>
         </div>
       </div>
     </div>
   );
 }
 
-// 主组件
 export default function AdminLoginPage() {
   return (
-    // 添加一些基础样式类来确保全屏显示
-    <div 
-      className="flex min-h-screen w-full items-center justify-center p-3 md:p-4 lg:p-6"
-      style={{
-        background: 'linear-gradient(180deg, #0a0a12 0%, #12101a 50%, #1a0f1f 100%)',
-        backgroundAttachment: 'fixed',
-        margin: 0,
-        padding: 0,
-        overflow: 'auto'
-      }}
-    >
-      <Suspense fallback={<LoadingSpinner />}>
-        <AdminLoginForm />
-      </Suspense>
-    </div>
+    <Suspense fallback={
+      <div 
+        className="flex items-center justify-center w-full h-full min-h-screen"
+        style={{
+          background: 'linear-gradient(180deg, #0a0a12 0%, #12101a 50%, #1a0f1f 100%)',
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          margin: 0,
+          padding: '1rem',
+          overflow: 'auto'
+        }}
+      >
+        <div className="w-full max-w-md text-center">
+          <div className="w-16 h-16 bg-gradient-to-br from-brand-pink to-brand-rose rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <Loader2 className="w-8 h-8 text-white animate-spin" />
+          </div>
+          <h1 className="text-2xl font-bold text-white mb-2">加载中...</h1>
+          <p className="text-gray-400">正在准备管理员登录</p>
+        </div>
+      </div>
+    }>
+      <AdminLoginForm />
+    </Suspense>
   );
 }
