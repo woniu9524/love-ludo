@@ -1,18 +1,8 @@
-// /app/admin/page.tsx - 完整修复版本
-import { validateAdminSession } from '@/lib/admin/auth';
-import { redirect } from 'next/navigation';
-import AdminLoginForm from '@/components/admin/login-form';
+// /app/admin/page.tsx - 修复版本（移除useSearchParams）
+import { Suspense } from 'react';
+import AdminLoginWrapper from '@/components/admin/login-wrapper';
 
 export default async function AdminPage() {
-  // 先检查是否已经是管理员
-  const { isAdmin } = await validateAdminSession();
-  
-  if (isAdmin) {
-    // 如果已经是管理员，跳转到仪表板
-    redirect('/admin/dashboard');
-  }
-
-  // 如果不是管理员，显示管理员登录页面
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
       <div className="w-full max-w-md">
@@ -27,7 +17,10 @@ export default async function AdminPage() {
         </div>
 
         <div className="bg-white rounded-2xl shadow-xl p-8">
-          <AdminLoginForm />
+          {/* 使用Suspense包装客户端组件 */}
+          <Suspense fallback={<div className="text-center py-4">加载登录表单...</div>}>
+            <AdminLoginWrapper />
+          </Suspense>
           
           <div className="mt-8 pt-6 border-t border-gray-200">
             <div className="text-center">
