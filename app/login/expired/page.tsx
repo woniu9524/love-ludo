@@ -1,83 +1,141 @@
-// /app/login/expired/page.tsx
-"use client";
+// /app/login/expired/page.tsx - 改进版
+'use client';
 
-import { Button } from "@/components/ui/button";
-import { AlertTriangle, Smartphone, Laptop } from "lucide-react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense } from "react";
+import { useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { AlertTriangle, LogOut, RefreshCw } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { createBrowserClient } from '@supabase/ssr';
 
-function SessionExpiredContent() {
+export default function LoginExpiredPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  
-  const message = searchParams.get('message') || '您的账号已在其他设备登录';
-  const email = searchParams.get('email') || '未知用户';
-  const lastLoginTime = searchParams.get('last_login_time') || '';
-  
+  const email = searchParams.get('email') || '';
+  const reason = searchParams.get('reason') || 'multi_device';
+
+  useEffect(() => {
+    // 清除所有可能的会话cookie
+    document.cookie.split(';').forEach(cookie => {
+      const cookieName = cookie.split('=')[0].trim();
+      if (cookieName.includes('sb-') || cookieName.includes('admin_')) {
+        document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
+      }
+    });
+    
+    // 清除管理员验证标记
+    document.cookie = 'admin_key_verified=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+  }, []);
+
+  const handleClearAndRedirect = async () => {
+    try {
+      // 使用Supabase登出
+      const supabase = createBrowserClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!
+      );
+      
+      await supabase.auth.signOut();
+      
+      // 额外清理本地存储
+      localStorage.clear();
+      sessionStorage.clear();
+      
+      // 重定向到登录页
+      router.push('/login');
+    } catch (error) {
+      console.error('清除会话失败:', error);
+      // 即使失败也重定向
+      router.push('/login');
+    }
+  };
+
+  const handleForceLogin = () => {
+    // 强制清理后重定向
+    handleClearAndRedirect();
+  };
+
   return (
-    <div className="max-w-md mx-auto min-h-svh flex flex-col p-6">
-      <div className="flex-1 flex flex-col items-center justify-center">
-        {/* 图标 */}
-        <div className="w-20 h-20 rounded-full bg-red-500/20 flex items-center justify-center mb-6">
-          <AlertTriangle className="w-10 h-10 text-red-500" />
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 to-gray-950 p-4">
+      <div className="bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md p-8">
+        {/* 头部 */}
+        <div className="flex flex-col items-center mb-8">
+          <div className="w-16 h-16 bg-gradient-to-br from-amber-500/20 to-amber-600/20 rounded-2xl flex items-center justify-center mb-4">
+            <AlertTriangle className="w-8 h-8 text-amber-400" />
+          </div>
+          <h1 className="text-2xl font-bold text-white text-center">
+            登录会话已过期
+          </h1>
+          <p className="text-gray-400 text-sm mt-2 text-center">
+            您的登录会话因以下原因已失效
+          </p>
         </div>
-        
-        {/* 标题 */}
-        <h1 className="text-2xl font-bold text-center mb-2">登录会话已过期</h1>
-        
-        {/* 消息 */}
-        <div className="glass rounded-2xl p-6 w-full mb-6">
-          <p className="text-gray-300 mb-3">{message}</p>
-          
-          {lastLoginTime && (
-            <div className="flex items-center space-x-2 text-sm text-gray-400 mb-2">
-              <Smartphone className="w-4 h-4" />
-              <span>最后登录时间: {new Date(lastLoginTime).toLocaleString('zh-CN')}</span>
+
+        {/* 原因说明 */}
+        <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 mb-6">
+          <div className="flex items-start space-x-3">
+            <AlertTriangle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-amber-300 font-medium mb-2">
+                {reason === 'new_device_login' 
+                  ? '检测到新设备登录'
+                  : '检测到多设备登录'}
+              </p>
+              <ul className="text-sm text-amber-400/80 space-y-1">
+                <li className="flex items-start">
+                  <span className="mr-2">•</span>
+                  <span>同一账号只能在单个设备上登录</span>
+                </li>
+                <li className="flex items-start">
+                  <span className="mr-2">•</span>
+                  <span>新设备登录会导致旧设备会话失效</span>
+                </li>
+                <li className="flex items-start">
+                  <span className="mr-2">•</span>
+                  <span>您可以选择重新登录或联系客服</span>
+                </li>
+              </ul>
             </div>
-          )}
-          
-          <div className="flex items-center space-x-2 text-sm text-gray-400">
-            <Laptop className="w-4 h-4" />
-            <span>当前设备: {navigator.userAgent.includes('Mobile') ? '移动设备' : '电脑'}</span>
           </div>
         </div>
-        
-        {/* 解释说明 */}
-        <div className="text-sm text-gray-400 mb-8 text-center">
-          <p>这是为了保护您的账户安全，避免他人未经授权访问您的账户。</p>
-          <p className="mt-1">如果您没有在其他设备登录，请立即修改密码。</p>
-        </div>
-        
+
+        {/* 用户信息 */}
+        {email && (
+          <div className="bg-gray-700/30 rounded-lg p-3 mb-6">
+            <p className="text-sm text-gray-300">
+              <span className="text-gray-400">受影响账号：</span>
+              {email}
+            </p>
+          </div>
+        )}
+
         {/* 操作按钮 */}
-        <div className="w-full space-y-3">
+        <div className="space-y-3">
           <Button
-            onClick={() => router.push('/login')}
-            className="w-full gradient-primary py-3.5 rounded-xl font-semibold glow-pink transition-all hover:scale-105 active:scale-95"
+            onClick={handleForceLogin}
+            className="w-full bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white"
           >
+            <RefreshCw className="w-4 h-4 mr-2" />
             重新登录
           </Button>
           
           <Button
+            onClick={handleClearAndRedirect}
             variant="outline"
-            onClick={() => router.push('/forgot-password')}
-            className="w-full py-3.5 rounded-xl"
+            className="w-full border-gray-600 hover:bg-white/5 text-gray-300 hover:text-white"
           >
-            忘记密码？
+            <LogOut className="w-4 h-4 mr-2" />
+            完全退出并返回登录页
           </Button>
+        </div>
+
+        {/* 帮助信息 */}
+        <div className="mt-8 pt-6 border-t border-gray-700/50">
+          <div className="text-center text-xs text-gray-500 space-y-2">
+            <p>如果多次遇到此问题，请联系客服</p>
+            <p>技术支持微信：xiyi1397</p>
+          </div>
         </div>
       </div>
     </div>
-  );
-}
-
-export default function SessionExpiredPage() {
-  return (
-    <Suspense fallback={
-      <div className="flex items-center justify-center min-h-svh">
-        <div className="text-gray-400">加载中...</div>
-      </div>
-    }>
-      <SessionExpiredContent />
-    </Suspense>
   );
 }
