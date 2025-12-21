@@ -1,10 +1,9 @@
-// /app/admin/page.tsx - 管理员登录页（使用密钥）
+// /app/admin/page.tsx - 必须包含密钥验证
 'use client';
 
 import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createBrowserClient } from '@supabase/ssr';
-import { verifyAdminKey } from '@/lib/admin/auth-utils';
 
 export default function AdminLoginPage() {
   const [email, setEmail] = useState('');
@@ -23,19 +22,34 @@ export default function AdminLoginPage() {
 
     try {
       // 1. 验证管理员密钥
-      if (!verifyAdminKey(adminKey)) {
+      const validAdminKey = process.env.NEXT_PUBLIC_ADMIN_KEY;
+      if (!validAdminKey) {
+        console.error('管理员密钥未设置');
+        setError('系统配置错误，请联系管理员');
+        setLoading(false);
+        return;
+      }
+
+      if (adminKey !== validAdminKey) {
         setError('管理员密钥错误');
         setLoading(false);
         return;
       }
 
-      // 2. 创建 Supabase 客户端
+      // 2. 检查邮箱是否是管理员
+      const adminEmails = process.env.ADMIN_EMAILS?.split(',') || ['2200691917@qq.com'];
+      if (!adminEmails.includes(email.trim().toLowerCase())) {
+        setError('非管理员邮箱');
+        setLoading(false);
+        return;
+      }
+
+      // 3. 使用 Supabase 登录
       const supabase = createBrowserClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!
       );
 
-      // 3. 登录
       const { error: signInError } = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password,
@@ -45,14 +59,13 @@ export default function AdminLoginPage() {
         throw signInError;
       }
 
-      // 4. 登录成功，根据redirect参数重定向
-      console.log(`[管理员登录] 成功，重定向到: ${redirectParam}`);
+      console.log(`✅ 管理员登录成功: ${email}`);
       router.push(redirectParam);
       router.refresh();
 
     } catch (err: any) {
       console.error('管理员登录失败:', err);
-      setError(err.message || '登录失败，请检查邮箱和密码');
+      setError(err.message || '登录失败');
       setLoading(false);
     }
   };
@@ -62,7 +75,7 @@ export default function AdminLoginPage() {
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900">管理员登录</h1>
-          <p className="text-gray-600 mt-2">请使用管理员账户和密钥登录</p>
+          <p className="text-gray-600 mt-2">需要管理员密钥</p>
         </div>
 
         <div className="bg-white rounded-xl shadow-sm p-8">
@@ -100,21 +113,18 @@ export default function AdminLoginPage() {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 管理员密钥
-                <span className="text-xs text-gray-500 ml-2">
-                  （环境变量：NEXT_PUBLIC_ADMIN_KEY）
-                </span>
               </label>
               <input
                 type="password"
                 value={adminKey}
                 onChange={(e) => setAdminKey(e.target.value)}
-                placeholder="请输入管理员密钥"
+                placeholder="输入NEXT_PUBLIC_ADMIN_KEY的值"
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 required
                 disabled={loading}
               />
               <p className="text-xs text-gray-500 mt-1">
-                当前密钥：{process.env.NEXT_PUBLIC_ADMIN_KEY ? '已设置' : '未设置'}
+                环境变量: NEXT_PUBLIC_ADMIN_KEY={process.env.NEXT_PUBLIC_ADMIN_KEY ? '已设置' : '未设置'}
               </p>
             </div>
 
@@ -135,7 +145,7 @@ export default function AdminLoginPage() {
                   登录中...
                 </>
               ) : (
-                '登录后台系统'
+                '管理员登录'
               )}
             </button>
           </form>
