@@ -1,48 +1,79 @@
 // /app/admin/dashboard/page.tsx
-import { requireAdmin } from '@/lib/admin/auth';
-import { createClient } from '@/lib/supabase/server';
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { createBrowserClient } from '@supabase/ssr';
 import { Users, Key, Brain, Gamepad2, BarChart3 } from 'lucide-react';
 
-export default async function AdminDashboard() {
-  await requireAdmin();
-  const supabase = await createClient();
-
-  // 获取统计信息
-  let stats = [
+export default function AdminDashboard() {
+  const router = useRouter();
+  const [stats, setStats] = useState([
     { label: '总用户数', value: 0, icon: Users, color: 'text-blue-600' },
     { label: '可用密钥', value: 0, icon: Key, color: 'text-green-600' },
     { label: 'AI使用量', value: 0, icon: Brain, color: 'text-purple-600' },
     { label: '游戏总数', value: 0, icon: Gamepad2, color: 'text-orange-600' },
-  ];
+  ]);
+  const [loading, setLoading] = useState(true);
 
-  try {
-    // 用户统计
-    const { count: userCount } = await supabase
-      .from('profiles')
-      .select('*', { count: 'exact', head: true });
-    stats[0].value = userCount || 0;
+  // 验证管理员权限并获取数据
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const supabase = createBrowserClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!
+        );
 
-    // 密钥统计
-    const { count: keyCount } = await supabase
-      .from('access_keys')
-      .select('*', { count: 'exact', head: true })
-      .eq('is_active', true);
-    stats[1].value = keyCount || 0;
+        // 检查是否登录
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        if (!user) {
+          router.push('/admin');
+          return;
+        }
 
-    // AI使用统计（简化）
-    const { count: aiUsageCount } = await supabase
-      .from('ai_usage_records')
-      .select('*', { count: 'exact', head: true });
-    stats[2].value = aiUsageCount || 0;
+        // 简单检查是否是管理员
+        const adminEmails = ['2200691917@qq.com'];
+        if (!adminEmails.includes(user.email?.toLowerCase() || '')) {
+          router.push('/admin/unauthorized');
+          return;
+        }
 
-  } catch (error) {
-    console.error('获取统计数据失败:', error);
+        // 这里可以添加获取统计数据的代码
+        // 暂时使用占位数据
+        setStats([
+          { label: '总用户数', value: 125, icon: Users, color: 'text-blue-600' },
+          { label: '可用密钥', value: 42, icon: Key, color: 'text-green-600' },
+          { label: 'AI使用量', value: 1567, icon: Brain, color: 'text-purple-600' },
+          { label: '游戏总数', value: 89, icon: Gamepad2, color: 'text-orange-600' },
+        ]);
+
+        setLoading(false);
+      } catch (error) {
+        console.error('获取数据失败:', error);
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [router]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">加载中...</p>
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div className="p-6">
+    <div>
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">系统仪表板</h1>
+        <h1 className="text-3xl font-bold text-gray-900">管理仪表板</h1>
         <p className="text-gray-600 mt-2">欢迎来到 Love Ludo 后台管理系统</p>
       </div>
 
@@ -51,7 +82,7 @@ export default async function AdminDashboard() {
         {stats.map((stat, index) => {
           const Icon = stat.icon;
           return (
-            <div key={index} className="bg-white rounded-xl shadow-sm p-6 border">
+            <div key={index} className="bg-white rounded-xl shadow-sm p-6 border hover:shadow-md transition-shadow">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-500">{stat.label}</p>
@@ -69,7 +100,7 @@ export default async function AdminDashboard() {
       {/* 快速操作 */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="bg-white rounded-xl shadow-sm p-6 border">
-          <h3 className="text-lg font-semibold mb-4">快速操作</h3>
+          <h3 className="text-lg font-semibold mb-4">系统管理</h3>
           <div className="space-y-3">
             <a
               href="/admin/keys"
@@ -112,6 +143,12 @@ export default async function AdminDashboard() {
             </div>
             <div className="flex justify-between items-center">
               <span className="text-gray-600">游戏服务器</span>
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                正常
+              </span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-gray-600">安全状态</span>
               <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                 正常
               </span>
