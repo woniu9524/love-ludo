@@ -1,74 +1,48 @@
-// /app/admin/layout.tsx - 简化版本
-import { requireAdmin } from '@/lib/admin/auth';
+// /app/admin/layout.tsx - 修复版本
+import { validateAdminSession } from '@/lib/admin/auth';
+import AdminNavbar from '@/components/admin/navbar';
 
 export default async function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  console.log('🔄 开始渲染后台布局...');
-  await requireAdmin();
-  console.log('✅ 权限验证通过，渲染后台');
-
-  return (
-    <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16">
-            <div className="flex items-center">
-              <div className="flex items-center">
-                <div className="flex-shrink-0 flex items-center">
-                  <span className="text-xl font-bold text-blue-600">Love Ludo</span>
-                  <span className="ml-2 text-sm text-gray-500">后台管理</span>
-                </div>
-              </div>
+  // 验证是否是管理员
+  const { isAdmin } = await validateAdminSession();
+  
+  // 如果不是管理员，显示无权限页面
+  if (!isAdmin) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+        <div className="bg-white rounded-xl shadow-sm p-8 max-w-md w-full">
+          <div className="text-center">
+            <div className="mx-auto w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
+              <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m0 0v-2m0 2h-2m2 0h2m-6-4h.01M12 12h.01M16 12h.01M8 12h.01M7 8h10a2 2 0 012 2v8a2 2 0 01-2 2H7a2 2 0 01-2-2v-8a2 2 0 012-2z" />
+              </svg>
             </div>
-            <div className="flex items-center space-x-4">
-              <span className="text-sm text-gray-600">管理员</span>
-              <a
-                href="/login?logout=true"
-                className="px-3 py-1 text-sm text-red-600 hover:text-red-800"
-              >
-                退出登录
-              </a>
-            </div>
-          </div>
-        </div>
-      </nav>
-
-      <div className="flex">
-        <aside className="w-64 bg-white border-r min-h-[calc(100vh-4rem)]">
-          <nav className="mt-5 px-2 space-y-1">
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">无权限访问</h1>
+            <p className="text-gray-600 mb-6">
+              您没有权限访问后台管理系统。请使用管理员账户登录。
+            </p>
             <a
               href="/admin"
-              className="group flex items-center px-2 py-2 text-base font-medium rounded-md bg-blue-100 text-blue-700"
+              className="inline-block px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
             >
-              仪表板
+              前往管理员登录
             </a>
-            <a
-              href="/admin/keys"
-              className="group flex items-center px-2 py-2 text-base font-medium rounded-md text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-            >
-              密钥管理
-            </a>
-            <a
-              href="/admin/users"
-              className="group flex items-center px-2 py-2 text-base font-medium rounded-md text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-            >
-              用户管理
-            </a>
-            <a
-              href="/admin/ai-usage"
-              className="group flex items-center px-2 py-2 text-base font-medium rounded-md text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-            >
-              AI使用统计
-            </a>
-          </nav>
-        </aside>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
-        <main className="flex-1 p-6">
-          {children}
-        </main>
+  // 如果是管理员，显示后台布局
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <AdminNavbar />
+      <div className="pt-16"> {/* 给导航栏留出空间 */}
+        {children}
       </div>
     </div>
   );
