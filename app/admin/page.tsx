@@ -1,4 +1,4 @@
-// /app/admin/page.tsx - 优化移动端和桌面端UI
+// /app/admin/page.tsx - 最终修复版本
 'use client';
 
 import { useState, useEffect, Suspense } from 'react';
@@ -164,9 +164,9 @@ function AdminLoginForm() {
                 className="text-gray-400 hover:text-white transition-colors disabled:opacity-50 p-1"
               >
                 {showPassword ? (
-                  <EyeOff className="w-4 h-4 md:w-5 md:h-5" />
+                  <EyeOff className="w-4 h-4 md:w-5 md:h-5" /> // 显示密码时：闭眼（有斜杠）
                 ) : (
-                  <Eye className="w-4 h-4 md:w-5 md:h-5" />
+                  <Eye className="w-4 h-4 md:w-5 md:h-5" /> // 隐藏密码时：睁眼（无斜杠）
                 )}
               </button>
             </div>
@@ -196,9 +196,9 @@ function AdminLoginForm() {
                 className="text-gray-400 hover:text-white transition-colors disabled:opacity-50 p-1"
               >
                 {showAdminKey ? (
-                  <EyeOff className="w-4 h-4 md:w-5 md:h-5" />
+                  <EyeOff className="w-4 h-4 md:w-5 md:h-5" /> // 显示密钥时：闭眼（有斜杠）
                 ) : (
-                  <Eye className="w-4 h-4 md:w-5 md:h-5" />
+                  <Eye className="w-4 h-4 md:w-5 md:h-5" /> // 隐藏密钥时：睁眼（无斜杠）
                 )}
               </button>
             </div>
@@ -290,10 +290,11 @@ function LoadingSpinner() {
   );
 }
 
-// 主组件
+// 主组件 - 使用与普通登录页面完全相同的背景
 export default function AdminLoginPage() {
   return (
-    <div className="min-h-screen w-full bg-gradient-to-br from-gray-900 via-black to-gray-900 flex items-center justify-center p-3 md:p-4 lg:p-6">
+    // 完全使用普通登录页面的外层样式
+    <div className="flex min-h-svh w-full items-center justify-center p-3 md:p-4 lg:p-6">
       <Suspense fallback={<LoadingSpinner />}>
         <AdminLoginForm />
       </Suspense>
