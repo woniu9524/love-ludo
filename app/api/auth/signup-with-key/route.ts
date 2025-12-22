@@ -1,3 +1,4 @@
+// /app/api/auth/signup-with-key/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
@@ -7,17 +8,15 @@ export async function POST(request: NextRequest) {
   try {
     const cookieStore = await cookies();
     
-    // 🔥 修复：正确的Cookie设置
+    // 🔥 简化：只创建用户，不进行任何登录操作
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       {
         cookies: {
           getAll: () => cookieStore.getAll(),
-          setAll: (cookiesToSet) => {
-            cookiesToSet.forEach(({ name, value, options }) => {
-              cookieStore.set(name, value, options);
-            });
+          setAll: () => {
+            // 注册API中不设置任何Cookie，避免中间件问题
           },
         },
       }
@@ -52,7 +51,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '密钥已过期' }, { status: 400 });
     }
 
-    // 3. 创建用户
+    // 3. 创建用户（只创建，不登录）
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email: email.trim(),
       password: password.trim(),
@@ -63,89 +62,64 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: `注册失败: ${authError?.message}` }, { status: 400 });
     }
 
-    // 4. 立即尝试自动登录（仍然尝试，但不依赖）
-    console.log('[API] 尝试自动登录...');
-    let autoLoginSuccess = false;
-    
-    // 第一次尝试登录
-    const { data: firstLoginData, error: firstLoginError } = await supabase.auth.signInWithPassword({
-      email: email.trim(),
-      password: password.trim(),
-    });
-
-    if (firstLoginError) {
-      console.log('[API] 首次自动登录失败（可能用户未同步），1秒后重试:', firstLoginError.message);
-      
-      // 等待1秒后重试
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // 第二次尝试登录
-      const { data: secondLoginData, error: secondLoginError } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
-        password: password.trim(),
-      });
-      
-      if (!secondLoginError && secondLoginData?.session) {
-        console.log('[API] 自动登录重试成功');
-        autoLoginSuccess = true;
-      } else {
-        console.error('[API] 自动登录重试失败:', secondLoginError?.message);
-      }
-    } else {
-      console.log('[API] 自动登录成功');
-      autoLoginSuccess = true;
-    }
-
-    // 5. 计算有效期
+    // 4. 计算有效期
     const validDays = keyData.account_valid_for_days || 30;
     const expiryDate = new Date();
     expiryDate.setDate(expiryDate.getDate() + validDays);
     const accountExpiresAt = expiryDate.toISOString();
 
-    // 6. 更新用户资料（profiles 表）
+    // 5. 更新用户资料（profiles 表）
     const now = new Date();
     const { error: profileError } = await supabase.from('profiles').upsert({
       id: authData.user.id,
       email: email.trim(),
       access_key_id: keyData.id,
       account_expires_at: accountExpiresAt,
-      created_at: now.toISOString(), // 🔥 设置创建时间
+      created_at: now.toISOString(),
       updated_at: now.toISOString(),
     });
     
     if (profileError) {
       console.error('[API] 更新profiles失败:', profileError);
+      // 即使profiles更新失败，也继续执行（避免影响用户体验）
     }
 
-    // 7. 更新密钥使用次数
-    await supabase
+    // 6. 更新密钥使用次数
+    const { error: updateKeyError } = await supabase
       .from('access_keys')
       .update({ 
         used_count: (keyData.used_count || 0) + 1, 
-        updated_at: new Date().toISOString() 
+        updated_at: now.toISOString() 
       })
       .eq('id', keyData.id);
+    
+    if (updateKeyError) {
+      console.error('[API] 更新密钥使用次数失败:', updateKeyError);
+    }
 
-    console.log('[API] 注册完成:', { 
+    console.log('[API] 注册成功:', { 
       userId: authData.user.id, 
-      expiresAt: accountExpiresAt,
-      autoLoginSuccess
+      email: email.trim(),
+      expiresAt: accountExpiresAt
     });
 
-    // 🔥 返回简单响应，告诉前端注册成功
+    // 7. 🔥 核心变更：返回简单响应，不进行自动登录
     return NextResponse.json({
       success: true,
-      message: '注册成功！',
+      message: '注册成功！请使用刚才的邮箱和密码登录',
       user: { 
         id: authData.user.id, 
         email: authData.user.email 
       },
       expires_at: accountExpiresAt,
-      auto_login: autoLoginSuccess, // 仅供参考，前端不依赖这个
+      redirect_to: `/login?email=${encodeURIComponent(email.trim())}&from=signup&key_used=${formattedKeyCode}`
     });
 
   } catch (error: any) {
     console.error('[API] 未处理异常:', error);
-    return NextResponse.json({ error: '服务器内部错误' }, { status: 500 });
+    return NextResponse.json({ 
+      error: '服务器内部错误，请稍后重试或联系客服' 
+    }, { status: 500 });
   }
 }
+// [skip ci]
