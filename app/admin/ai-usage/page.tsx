@@ -6,7 +6,7 @@ import { BarChart3, Brain, Download, Filter } from 'lucide-react'
 
 // 动态渲染配置 - 解决构建错误的关键
 export const dynamic = 'force-dynamic'
-export const revalidate = 0
+// export const revalidate = 0
 
 interface AIUsageRecord {
   id: string

@@ -6,7 +6,7 @@ import { Users, Mail, Calendar, Shield, MoreVertical, Search } from 'lucide-reac
 
 // 动态渲染配置 - 解决构建错误的关键
 export const dynamic = 'force-dynamic'
-export const revalidate = 0
+// export const revalidate = 0
 
 interface User {
   id: string

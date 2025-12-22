@@ -6,7 +6,7 @@ import { Key, Copy, Check, Trash2, Plus, Search } from 'lucide-react'
 
 // 动态渲染配置 - 解决构建错误的关键
 export const dynamic = 'force-dynamic'
-export const revalidate = 0
+// export const revalidate = 0
 
 interface AccessKey {
   id: string
