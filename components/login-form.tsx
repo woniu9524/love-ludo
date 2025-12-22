@@ -22,13 +22,13 @@ export function LoginForm({
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  
+
   const searchParams = useSearchParams();
-  
+
   const redirectTo = searchParams.get('redirect') || "/lobby";
   const emailFromUrl = searchParams.get("email");
   const fromSignup = searchParams.get("from") === "signup";
-  
+
   useEffect(() => {
     if (emailFromUrl) {
       setEmail(emailFromUrl);
@@ -38,18 +38,18 @@ export function LoginForm({
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    
+
     if (isLoading) return;
-    
+
     setIsLoading(true);
     setError(null);
     setSuccessMessage(null);
 
     try {
       const supabase = createClient();
-      
+
       console.log("[LoginForm] 尝试登录:", email.trim());
-      
+
       const { data, error: authError } = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password: password.trim(),
@@ -67,14 +67,14 @@ export function LoginForm({
       }
 
       console.log("[LoginForm] 登录成功，更新会话标识");
-      
+
       // 🔥 关键修复：同步更新会话标识
       if (data?.user && data?.session) {
         try {
           const sessionFingerprint = `sess_${data.user.id}_${data.session.access_token.substring(0, 12)}`;
-          
+
           console.log("[LoginForm] 设置会话标识:", sessionFingerprint);
-          
+
           const { error: updateError } = await supabase
             .from('profiles')
             .update({
@@ -93,16 +93,16 @@ export function LoginForm({
           console.error('[登录] 处理会话时异常:', sessionErr);
         }
       }
-      
+
       // 显示成功消息
       setSuccessMessage("✅ 登录成功！");
-      
+
       // 🔥 确保有足够时间让数据库更新传播
       setTimeout(() => {
         console.log('✅ 重定向到:', redirectTo);
         window.location.href = redirectTo;
       }, 500); // 500ms延迟确保状态同步
-      
+
     } catch (error: unknown) {
       console.error("[LoginForm] 登录异常:", error);
       setError(error instanceof Error ? error.message : "登录失败，请重试");
@@ -229,7 +229,7 @@ export function LoginForm({
               }}
             >
               联系客服
-            </a>
+            </Link> {/* 这里改为 </Link> */}
           </p>
         </div>
       </form>
