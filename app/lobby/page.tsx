@@ -82,7 +82,7 @@ export default async function LobbyPage({ searchParams }: { searchParams?: { err
   
   // 3. 获取当前会话
   const { data: { session } } = await supabase.auth.getSession();
-  if (!currentSession) {
+  if (!session) {  // ✅ 修复：改为 session
     await supabase.auth.signOut();
     redirect('/login?error=no_session');
   }
@@ -106,7 +106,7 @@ export default async function LobbyPage({ searchParams }: { searchParams?: { err
   
   // ============ 【严格的多设备登录验证】 ============
   // 从JWT中解析会话创建时间
-  const sessionCreatedTime = getJwtCreationTime(currentSession.access_token);
+  const sessionCreatedTime = getJwtCreationTime(session.access_token);  // ✅ 修复：改为 session.access_token
   const lastLoginTime = profile.last_login_at ? new Date(profile.last_login_at) : null;
   
   // 添加3秒容差，避免由于时间同步或处理延迟导致的误判
@@ -171,7 +171,7 @@ export default async function LobbyPage({ searchParams }: { searchParams?: { err
             <p className="text-sm text-gray-400 mt-1">找到你的对手，开始游戏</p>
           </div>
           <Link
-            href="https://github.com/woniu9524/love-ludo"
+            href="https://"
             target="_blank"
             rel="noopener noreferrer"
             className="w-10 h-10 bg-white rounded-xl flex items-center justify-center hover:bg-white/90 transition-all"
