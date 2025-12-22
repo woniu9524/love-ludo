@@ -8,11 +8,6 @@ import { Label } from "@/components/ui/label";
 import { useState } from "react";
 import { Mail, Lock, Eye, EyeOff, Shuffle, Key } from "lucide-react";
 
-// 🔥 简单的延迟函数
-function sleep(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
-
 export function SignUpForm({
   className,
   ...props
@@ -38,10 +33,10 @@ export function SignUpForm({
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
-    const supabase = createClient();
     setIsLoading(true);
     setError(null);
 
+    // 验证密钥（必填）
     if (!licenseKey.trim()) {
       setError('请输入有效的产品密钥');
       setIsLoading(false);
@@ -57,9 +52,9 @@ export function SignUpForm({
           password: password.trim(),
           keyCode: licenseKey.trim().toUpperCase(),
         }),
-        credentials: 'include', // 🔥 重要：包含Cookie
       });
 
+      // ============ 核心修复：在解析JSON前先检查状态 ============
       if (!signUpResponse.ok) {
         const contentType = signUpResponse.headers.get('content-type');
         if (contentType && contentType.includes('application/json')) {
@@ -73,66 +68,25 @@ export function SignUpForm({
           throw new Error(cleanError);
         }
       }
+      // ============ 核心修复结束 ============
 
+      // 3. 只有状态码是200-299时，才安全地解析JSON
       const result = await signUpResponse.json();
 
-      // 🔥 简化的自动登录处理逻辑
-      setError('✅ 注册成功！正在处理登录...');
-      
-      // 等待2秒，让Cookie和会话完全设置
-      await sleep(2000);
-      
-      try {
-        // 首先尝试使用getUser验证是否已经登录
-        const { data: { user }, error: userError } = await supabase.auth.getUser();
+      // ============ 最简单的成功处理：直接跳转到登录页 ============
+      if (result.success) {
+        setError('✅ 注册成功！正在跳转到登录页面...');
+        setIsLoading(false);
         
-        if (userError) {
-          console.log('getUser失败，尝试signInWithPassword:', userError);
-          throw userError;
-        }
-        
-        if (user) {
-          // 已经自动登录成功
-          setError('✅ 登录成功！正在跳转到游戏大厅...');
-          setIsLoading(false);
-          
-          setTimeout(() => {
-            window.location.href = '/lobby';
-          }, 1000);
-        } else {
-          // 没有自动登录，尝试手动登录
-          throw new Error('需要手动登录');
-        }
-      } catch (loginError) {
-        console.log('自动登录失败，尝试手动登录:', loginError);
-        
-        // 尝试手动登录
-        const { data: loginData, error: manualLoginError } = await supabase.auth.signInWithPassword({
-          email: email.trim(),
-          password: password.trim(),
-        });
-        
-        if (manualLoginError) {
-          console.error('手动登录失败:', manualLoginError);
-          
-          // 所有登录尝试都失败，跳转到登录页预填邮箱
-          setError('✅ 注册成功！请使用刚才的邮箱和密码登录');
-          setIsLoading(false);
-          
-          setTimeout(() => {
-            window.location.href = `/login?email=${encodeURIComponent(email.trim())}&from=signup`;
-          }, 1500);
-        } else {
-          // 手动登录成功
-          setError('✅ 登录成功！正在跳转到游戏大厅...');
-          setIsLoading(false);
-          
-          setTimeout(() => {
-            window.location.href = '/lobby';
-          }, 1000);
-        }
+        // 🔥 简化的方案：注册成功后直接跳转到登录页，预填邮箱
+        setTimeout(() => {
+          window.location.href = `/login?email=${encodeURIComponent(email.trim())}&from=signup`;
+        }, 1500);
+      } else {
+        setError(result.error || '注册失败');
+        setIsLoading(false);
       }
-      
+      // ============ 替换结束 ============
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : "注册过程中发生未知错误");
       setIsLoading(false);
