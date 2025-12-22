@@ -1,4 +1,4 @@
-// /lib/admin/auth.ts - 完整版本
+// /lib/admin/auth.ts - 修复拼写错误
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 
@@ -60,7 +60,7 @@ export async function requireAdmin() {
 
 // 检查是否是管理员路径
 export function isAdminPath(path: string): boolean {
-  return path.startsWith('/admin') && !pathname.includes('/admin/login')
+  return path.startsWith('/admin') && !path.includes('/admin/login')  // 修复：使用 path 而不是 pathname
 }
 
 // 获取重定向路径
