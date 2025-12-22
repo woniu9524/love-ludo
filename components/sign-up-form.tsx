@@ -5,7 +5,6 @@ import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Mail, Lock, Eye, EyeOff, Shuffle, Key } from "lucide-react";
 
@@ -25,7 +24,6 @@ export function SignUpForm({
   const [isLoading, setIsLoading] = useState(false);
   const [isRandom, setIsRandom] = useState(false);
   const [licenseKey, setLicenseKey] = useState("");
-  const router = useRouter();
 
   const generateRandomAccount = () => {
     const randomStr = Math.random().toString(36).substring(2, 11);
