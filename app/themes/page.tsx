@@ -70,7 +70,7 @@ export default async function ThemesPage() {
   }
   
   // 3. 获取当前会话
-const { data: { session: currentSession } } = await supabase.auth.getSession();
+const { data: { session } } = await supabase.auth.getSession();
   if (!currentSession) {
     await supabase.auth.signOut();
     redirect('/login?error=no_session');
