@@ -6,10 +6,21 @@ export async function POST(request: NextRequest) {
   console.log('[API] 注册开始');
   try {
     const cookieStore = await cookies();
+    
+    // 🔥 修复：正确的Cookie设置
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      { cookies: { getAll: () => cookieStore.getAll(), setAll: () => {} } }
+      {
+        cookies: {
+          getAll: () => cookieStore.getAll(),
+          setAll: (cookiesToSet) => {
+            cookiesToSet.forEach(({ name, value, options }) => {
+              cookieStore.set(name, value, options);
+            });
+          },
+        },
+      }
     );
 
     // 1. 解析数据
@@ -20,7 +31,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '邮箱、密码和密钥必填' }, { status: 400 });
     }
 
-    // 2. 查询密钥（使用新表结构）
+    // 2. 查询密钥
     const { data: keyData, error: keyError } = await supabase
       .from('access_keys')
       .select('id, key_code, used_count, max_uses, key_expires_at, account_valid_for_days')
@@ -88,26 +99,31 @@ export async function POST(request: NextRequest) {
       loginData = firstLoginData;
     }
 
-    // 5. 计算有效期（使用新字段 account_valid_for_days）
+    // 5. 计算有效期
     const validDays = keyData.account_valid_for_days || 30;
     const expiryDate = new Date();
     expiryDate.setDate(expiryDate.getDate() + validDays);
     const accountExpiresAt = expiryDate.toISOString();
 
+    // 🔥 获取当前会话用于生成标识
+    const { data: { session } } = await supabase.auth.getSession();
+    const currentSessionId = session ? `sess_${session.user.id}_${session.access_token.substring(0, 12)}` : 'new';
+    
     // 6. 更新用户资料（profiles 表）
-    const sessionTokenPrefix = loginData?.session?.access_token?.substring(0, 12) || 'new';
+    const now = new Date();
     const { error: profileError } = await supabase.from('profiles').upsert({
       id: authData.user.id,
       email: email.trim(),
       access_key_id: keyData.id,
       account_expires_at: accountExpiresAt,
-      last_login_at: new Date().toISOString(),
-      last_login_session: `sess_${authData.user.id}_${sessionTokenPrefix}`,
-      updated_at: new Date().toISOString(),
+      last_login_at: now.toISOString(),
+      last_login_session: currentSessionId,
+      created_at: now.toISOString(), // 🔥 重要：设置创建时间用于新用户判断
+      updated_at: now.toISOString(),
     });
     
     if (profileError) {
-      console.error('[API] 更新profiles失败（非关键）:', profileError);
+      console.error('[API] 更新profiles失败:', profileError);
     }
 
     // 7. 更新密钥使用次数
@@ -122,11 +138,12 @@ export async function POST(request: NextRequest) {
     console.log('[API] 注册完成:', { 
       userId: authData.user.id, 
       expiresAt: accountExpiresAt,
-      autoLoginSuccess
+      autoLoginSuccess,
+      sessionId: currentSessionId
     });
 
-    // 8. 返回成功响应，包含自动登录状态
-    return NextResponse.json({
+    // 🔥 创建响应并设置新用户标记Cookie
+    const response = NextResponse.json({
       success: true,
       message: autoLoginSuccess ? '注册成功！已自动登录' : '注册成功，请手动登录',
       user: { 
@@ -134,9 +151,22 @@ export async function POST(request: NextRequest) {
         email: authData.user.email 
       },
       expires_at: accountExpiresAt,
-      auto_login: autoLoginSuccess, // 新增字段：告诉前端是否自动登录成功
+      auto_login: autoLoginSuccess,
       redirect_to: '/lobby'
     });
+    
+    // 🔥 设置新用户标记Cookie，有效时间1分钟
+    response.cookies.set({
+      name: 'new_user_grace_period',
+      value: 'true',
+      path: '/',
+      maxAge: 60, // 1分钟
+      httpOnly: false, // 前端也需要访问
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+    });
+
+    return response;
 
   } catch (error: any) {
     console.error('[API] 未处理异常:', error);
