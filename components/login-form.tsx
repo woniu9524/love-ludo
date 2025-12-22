@@ -56,7 +56,7 @@ export function LoginForm({
       
       // ============ 记录登录会话 ============
       try {
-        const sessionFingerprint = `web_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
+    const sessionFingerprint = `sess_${authData.user.id}_${authData.session.access_token.substring(0, 12)}`;
         
         const { error: updateError } = await supabase
           .from('profiles')
