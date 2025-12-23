@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
       console.log(`查询用户详情: ${detailId}`)
       
       try {
-        // 🔥 关键修复：并行查询所有相关数据
+        // 并行查询所有相关数据
         const [
           profileResult,
           allKeysResult,
@@ -61,58 +61,14 @@ export async function GET(request: NextRequest) {
             .eq('id', detailId)
             .single(),
           
-          // 2. 🔥 修复：查询用户的所有密钥记录
-          // 根据您的查询结果，我们需要：
-          // 1) 查询用户当前使用的密钥（通过access_key_id）
-          // 2) 查询用户使用过的密钥（通过user_id）
-          (async () => {
-            try {
-              let allKeys: any[] = []
-              
-              // 先查询用户当前使用的密钥（通过access_key_id）
-              const { data: userProfile } = await supabaseAdmin
-                .from('profiles')
-                .select('access_key_id')
-                .eq('id', detailId)
-                .single()
-              
-              if (userProfile?.access_key_id) {
-                const { data: currentKey } = await supabaseAdmin
-                  .from('access_keys')
-                  .select('*')
-                  .eq('id', userProfile.access_key_id)
-                  .single()
-                
-                if (currentKey) {
-                  allKeys.push(currentKey)
-                }
-              }
-              
-              // 再查询用户使用过的所有密钥（通过user_id）
-              const { data: usedKeys } = await supabaseAdmin
-                .from('access_keys')
-                .select('*')
-                .eq('user_id', detailId)
-                .order('created_at', { ascending: false })
-              
-              if (usedKeys && usedKeys.length > 0) {
-                // 去重，避免重复添加相同的密钥
-                const existingIds = new Set(allKeys.map(k => k.id))
-                usedKeys.forEach(key => {
-                  if (!existingIds.has(key.id)) {
-                    allKeys.push(key)
-                  }
-                })
-              }
-              
-              return { data: allKeys, error: null }
-            } catch (error) {
-              console.error('查询密钥记录失败:', error)
-              return { data: [], error }
-            }
-          })(),
+          // 2. 查询用户的所有密钥记录
+          supabaseAdmin
+            .from('access_keys')
+            .select('*')
+            .eq('user_id', detailId)
+            .order('created_at', { ascending: false }),
           
-          // 3. 🔥 修复：AI使用记录 - 确保返回完整数据
+          // 3. AI使用记录
           supabaseAdmin
             .from('ai_usage_records')
             .select('*')
@@ -120,7 +76,7 @@ export async function GET(request: NextRequest) {
             .order('created_at', { ascending: false })
             .limit(10),
           
-          // 4. 🔥 修复：游戏历史记录 - 修正字段名
+          // 4. 游戏历史记录
           supabaseAdmin
             .from('game_history')
             .select('*')
@@ -138,41 +94,38 @@ export async function GET(request: NextRequest) {
           )
         }
 
-        // 🔥 调试：检查查询结果
-        console.log('查询结果详情:', {
-          用户信息: !!profileResult.data,
-          用户access_key_id: profileResult.data?.access_key_id,
-          密钥记录数: allKeysResult.data?.length || 0,
-          密钥数据: allKeysResult.data?.map(k => ({ id: k.id, key_code: k.key_code })),
-          AI记录数: aiUsageResult.data?.length || 0,
-          AI数据: aiUsageResult.data?.map(a => ({ id: a.id, feature: a.feature })),
-          游戏记录数: gameHistoriesResult.data?.length || 0
+        // 🔥 关键修复：返回数据，使用驼峰命名（与前端类型定义一致）
+        const responseData = {
+          // profiles 表字段（保持原样）
+          id: profileResult.data?.id,
+          email: profileResult.data?.email,
+          nickname: profileResult.data?.nickname,
+          full_name: profileResult.data?.full_name,
+          avatar_url: profileResult.data?.avatar_url,
+          bio: profileResult.data?.bio,
+          preferences: profileResult.data?.preferences,
+          account_expires_at: profileResult.data?.account_expires_at,
+          last_login_at: profileResult.data?.last_login_at,
+          last_login_session: profileResult.data?.last_login_session,
+          access_key_id: profileResult.data?.access_key_id,
+          created_at: profileResult.data?.created_at,
+          updated_at: profileResult.data?.updated_at,
+          
+          // 🔥 关键修复：使用驼峰命名
+          accessKeys: allKeysResult.data || [],
+          aiUsageRecords: aiUsageResult.data || [],
+          gameHistory: gameHistoriesResult.data || []
+        }
+
+        console.log('API返回数据:', {
+          密钥数量: responseData.accessKeys.length,
+          AI记录数量: responseData.aiUsageRecords.length,
+          游戏记录数量: responseData.gameHistory.length
         })
 
-        // 🔥 关键：返回数据，确保字段名与前端类型定义匹配
         return NextResponse.json({
           success: true,
-          data: {
-            // profiles 表字段
-            id: profileResult.data?.id,
-            email: profileResult.data?.email,
-            nickname: profileResult.data?.nickname,
-            full_name: profileResult.data?.full_name,
-            avatar_url: profileResult.data?.avatar_url,
-            bio: profileResult.data?.bio,
-            preferences: profileResult.data?.preferences,
-            account_expires_at: profileResult.data?.account_expires_at,
-            last_login_at: profileResult.data?.last_login_at,
-            last_login_session: profileResult.data?.last_login_session,
-            access_key_id: profileResult.data?.access_key_id,
-            created_at: profileResult.data?.created_at,
-            updated_at: profileResult.data?.updated_at,
-            
-            // 🔥 关键：使用驼峰命名，与前端UserDetail接口一致
-            accessKeys: allKeysResult.data || [],
-            aiUsageRecords: aiUsageResult.data || [],
-            gameHistory: gameHistoriesResult.data || []
-          }
+          data: responseData
         })
 
       } catch (error: any) {
@@ -253,27 +206,6 @@ export async function GET(request: NextRequest) {
         data = profilesData || []
         count = profilesCount
         
-        // 手动查询关联的密钥信息
-        if (data.length > 0) {
-          const accessKeyIds = data
-            .filter((profile: any) => profile.access_key_id)
-            .map((profile: any) => profile.access_key_id)
-          
-          if (accessKeyIds.length > 0) {
-            const { data: accessKeysData } = await supabaseAdmin
-              .from('access_keys')
-              .select('id, key_code, account_valid_for_days, used_at, key_expires_at')
-              .in('id', accessKeyIds)
-            
-            if (accessKeysData) {
-              const accessKeyMap = new Map(accessKeysData.map((key: any) => [key.id, key]))
-              data = data.map((profile: any) => ({
-                ...profile,
-                access_key: profile.access_key_id ? accessKeyMap.get(profile.access_key_id) : null
-              }))
-            }
-          }
-        }
         break
 
       default:
@@ -305,25 +237,4 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     )
   }
-}
-
-export async function POST(request: NextRequest) {
-  return NextResponse.json(
-    { success: false, error: '暂不支持POST方法' },
-    { status: 405 }
-  )
-}
-
-export async function PUT(request: NextRequest) {
-  return NextResponse.json(
-    { success: false, error: '暂不支持PUT方法' },
-    { status: 405 }
-  )
-}
-
-export async function DELETE(request: NextRequest) {
-  return NextResponse.json(
-    { success: false, error: '暂不支持DELETE方法' },
-    { status: 405 }
-  )
 }

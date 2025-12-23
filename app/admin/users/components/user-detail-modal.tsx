@@ -1,4 +1,4 @@
-// /app/admin/users/components/user-detail-modal.tsx
+// /app/admin/users/components/user-detail-modal.tsx - 完整修复版本
 'use client'
 
 import { X, Mail, User, Calendar, Key, Brain, Gamepad2, Copy, Check, Clock, Award, Users, History, BarChart3 } from 'lucide-react'
@@ -16,27 +16,32 @@ export default function UserDetailModal({ isOpen, onClose, userDetail, loading }
   const [activeTab, setActiveTab] = useState<'info' | 'keys' | 'ai' | 'games'>('info')
   const [copied, setCopied] = useState<string | null>(null)
 
-  // 调试：查看接收到的数据
+  // 🔥 关键修复：添加详细的调试信息
   useEffect(() => {
     if (userDetail) {
-      console.log('用户详情数据:', {
-        基本信息: {
-          邮箱: userDetail.email,
-          昵称: userDetail.nickname,
-          会员到期: userDetail.account_expires_at
+      console.log('🎯 用户详情数据调试:', {
+        '1. 数据结构': {
+          '类型': typeof userDetail,
+          '所有键': Object.keys(userDetail)
         },
-        密钥记录: {
-          数量: userDetail.accessKeys?.length || 0,
-          数据: userDetail.accessKeys
+        '2. 密钥记录 (accessKeys)': {
+          '是否存在': 'accessKeys' in userDetail,
+          '类型': typeof userDetail.accessKeys,
+          '数量': userDetail.accessKeys?.length || 0,
+          '前2条数据': userDetail.accessKeys?.slice(0, 2) || '无数据',
+          '所有密钥代码': userDetail.accessKeys?.map(k => k.key_code) || []
         },
-        游戏记录: {
-          数量: userDetail.gameHistory?.length || 0,
-          数据: userDetail.gameHistory
+        '3. AI记录 (aiUsageRecords)': {
+          '是否存在': 'aiUsageRecords' in userDetail,
+          '数量': userDetail.aiUsageRecords?.length || 0,
+          '所有功能': userDetail.aiUsageRecords?.map(r => r.feature) || []
         },
-        AI记录: {
-          数量: userDetail.aiUsageRecords?.length || 0,
-          数据: userDetail.aiUsageRecords
-        }
+        '4. 游戏记录 (gameHistory)': {
+          '是否存在': 'gameHistory' in userDetail,
+          '数量': userDetail.gameHistory?.length || 0
+        },
+        '5. 当前密钥ID': userDetail.access_key_id,
+        '6. API返回的原始数据': userDetail
       })
     }
   }, [userDetail])
@@ -51,47 +56,147 @@ export default function UserDetailModal({ isOpen, onClose, userDetail, loading }
 
   const formatDate = (dateString: string | null) => {
     if (!dateString) return '无'
-    return new Date(dateString).toLocaleString('zh-CN', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit'
-    })
+    try {
+      return new Date(dateString).toLocaleString('zh-CN', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+      })
+    } catch (error) {
+      return '无效日期'
+    }
   }
 
   const formatSimpleDate = (dateString: string | null) => {
     if (!dateString) return '无'
-    return new Date(dateString).toLocaleDateString('zh-CN')
+    try {
+      return new Date(dateString).toLocaleDateString('zh-CN')
+    } catch (error) {
+      return '无效日期'
+    }
   }
 
   const calculateDaysRemaining = (expiresAt: string | null) => {
     if (!expiresAt) return 0
-    const now = new Date()
-    const expireDate = new Date(expiresAt)
-    const diffTime = expireDate.getTime() - now.getTime()
-    return Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)))
+    try {
+      const now = new Date()
+      const expireDate = new Date(expiresAt)
+      const diffTime = expireDate.getTime() - now.getTime()
+      return Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)))
+    } catch (error) {
+      return 0
+    }
   }
 
   const calculateGameStats = () => {
     if (!userDetail?.gameHistory?.length) return null
     
-    const games = userDetail.gameHistory
-    const totalGames = games.length
-    const wins = games.filter(g => g.winner_id === userDetail.id).length
-    const losses = games.filter(g => g.winner_id && g.winner_id !== userDetail.id).length
-    const draws = games.filter(g => !g.winner_id).length
-    
-    return {
-      totalGames,
-      wins,
-      losses,
-      draws,
-      winRate: totalGames > 0 ? Math.round((wins / totalGames) * 100) : 0
+    try {
+      const games = userDetail.gameHistory
+      const totalGames = games.length
+      const wins = games.filter(g => g.winner_id === userDetail.id).length
+      const losses = games.filter(g => g.winner_id && g.winner_id !== userDetail.id).length
+      const draws = games.filter(g => !g.winner_id).length
+      
+      return {
+        totalGames,
+        wins,
+        losses,
+        draws,
+        winRate: totalGames > 0 ? Math.round((wins / totalGames) * 100) : 0
+      }
+    } catch (error) {
+      return null
     }
   }
 
   const gameStats = calculateGameStats()
+
+  // 🔥 关键修复：添加向后兼容的逻辑
+  // 如果 accessKeys 不存在，尝试使用 access_keys、accessKey 等可能的字段名
+  const getAccessKeys = () => {
+    if (!userDetail) return []
+    
+    // 尝试多种可能的字段名
+    if (userDetail.accessKeys && Array.isArray(userDetail.accessKeys)) {
+      return userDetail.accessKeys
+    }
+    
+    // 🔥 向后兼容：尝试其他可能的字段名
+    const possibleFieldNames = [
+      'access_keys',  // 下划线命名
+      'accessKey',    // 单数驼峰
+      'access_key',   // 下划线单数
+      'keys',         // 简写
+    ]
+    
+    for (const fieldName of possibleFieldNames) {
+      if ((userDetail as any)[fieldName] && Array.isArray((userDetail as any)[fieldName])) {
+        console.log(`🔍 使用备用字段名: ${fieldName}`)
+        return (userDetail as any)[fieldName]
+      }
+    }
+    
+    return []
+  }
+
+  // 🔥 同样的逻辑用于 AI 记录
+  const getAiUsageRecords = () => {
+    if (!userDetail) return []
+    
+    if (userDetail.aiUsageRecords && Array.isArray(userDetail.aiUsageRecords)) {
+      return userDetail.aiUsageRecords
+    }
+    
+    const possibleFieldNames = [
+      'ai_usage_records',
+      'aiUsageRecord',
+      'ai_usage_record',
+      'aiRecords',
+      'ai_records'
+    ]
+    
+    for (const fieldName of possibleFieldNames) {
+      if ((userDetail as any)[fieldName] && Array.isArray((userDetail as any)[fieldName])) {
+        console.log(`🔍 AI使用备用字段名: ${fieldName}`)
+        return (userDetail as any)[fieldName]
+      }
+    }
+    
+    return []
+  }
+
+  // 🔥 同样的逻辑用于游戏记录
+  const getGameHistory = () => {
+    if (!userDetail) return []
+    
+    if (userDetail.gameHistory && Array.isArray(userDetail.gameHistory)) {
+      return userDetail.gameHistory
+    }
+    
+    const possibleFieldNames = [
+      'game_history',
+      'gameHistoryRecords',
+      'game_history_records',
+      'games'
+    ]
+    
+    for (const fieldName of possibleFieldNames) {
+      if ((userDetail as any)[fieldName] && Array.isArray((userDetail as any)[fieldName])) {
+        console.log(`🔍 游戏记录备用字段名: ${fieldName}`)
+        return (userDetail as any)[fieldName]
+      }
+    }
+    
+    return []
+  }
+
+  // 使用修复后的获取函数
+  const accessKeys = getAccessKeys()
+  const aiUsageRecords = getAiUsageRecords()
+  const gameHistory = getGameHistory()
 
   return (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -138,9 +243,27 @@ export default function UserDetailModal({ isOpen, onClose, userDetail, loading }
               <div className="flex overflow-x-auto px-6">
                 {[
                   { id: 'info', label: '基本信息', icon: User },
-                  { id: 'keys', label: '密钥记录', icon: Key, badge: userDetail.accessKeys?.length || 0 },
-                  { id: 'ai', label: 'AI使用', icon: Brain, badge: userDetail.aiUsageRecords?.length || 0 },
-                  { id: 'games', label: '游戏记录', icon: Gamepad2, badge: userDetail.gameHistory?.length || 0 }
+                  { 
+                    id: 'keys', 
+                    label: '密钥记录', 
+                    icon: Key, 
+                    badge: accessKeys.length || 0,
+                    title: `密钥记录 (${accessKeys.length})`
+                  },
+                  { 
+                    id: 'ai', 
+                    label: 'AI使用', 
+                    icon: Brain, 
+                    badge: aiUsageRecords.length || 0,
+                    title: `AI使用记录 (${aiUsageRecords.length})`
+                  },
+                  { 
+                    id: 'games', 
+                    label: '游戏记录', 
+                    icon: Gamepad2, 
+                    badge: gameHistory.length || 0,
+                    title: `游戏记录 (${gameHistory.length})`
+                  }
                 ].map((tab) => {
                   const Icon = tab.icon
                   return (
@@ -152,6 +275,7 @@ export default function UserDetailModal({ isOpen, onClose, userDetail, loading }
                           : 'border-transparent text-gray-400 hover:text-gray-300'
                       }`}
                       onClick={() => setActiveTab(tab.id as any)}
+                      title={tab.title}
                     >
                       <Icon className="w-4 h-4 mr-2" />
                       {tab.label}
@@ -249,15 +373,15 @@ export default function UserDetailModal({ isOpen, onClose, userDetail, loading }
                     </div>
                   </div>
 
-                  {/* 当前使用的密钥 */}
-                  {userDetail.access_key_id && userDetail.accessKeys?.find(k => k.id === userDetail.access_key_id) && (
+                  {/* 当前使用的密钥 - 🔥 修复：使用新的获取函数 */}
+                  {userDetail.access_key_id && accessKeys.length > 0 && (
                     <div className="bg-gray-900/50 rounded-xl p-6">
                       <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
                         <Key className="w-5 h-5 mr-2 text-amber-400" />
                         当前使用的密钥
                       </h3>
                       {(() => {
-                        const currentKey = userDetail.accessKeys.find(k => k.id === userDetail.access_key_id)
+                        const currentKey = accessKeys.find((k: any) => k.id === userDetail.access_key_id)
                         if (!currentKey) return null
                         
                         return (
@@ -308,27 +432,40 @@ export default function UserDetailModal({ isOpen, onClose, userDetail, loading }
                 </div>
               )}
 
-              {/* 密钥记录标签页 */}
+              {/* 密钥记录标签页 - 🔥 修复：使用新的获取函数 */}
               {activeTab === 'keys' && (
                 <div className="space-y-6">
                   <div className="bg-gray-900/50 rounded-xl p-6">
                     <h3 className="text-lg font-semibold text-white mb-4">
-                      密钥记录 ({userDetail.accessKeys?.length || 0})
+                      密钥记录 ({accessKeys.length})
                     </h3>
                     
-                    {/* 调试信息 */}
+                    {/* 🔥 关键：详细的调试信息 */}
                     <div className="mb-4 p-3 bg-gray-800/30 rounded-lg">
-                      <p className="text-sm text-gray-400">
-                        API返回密钥数量: {userDetail.accessKeys?.length || 0}
-                      </p>
-                      {userDetail.access_key_id && (
-                        <p className="text-sm text-gray-400">
-                          当前使用密钥ID: {userDetail.access_key_id}
-                        </p>
-                      )}
+                      <h4 className="text-sm font-medium text-amber-400 mb-2">🔍 调试信息</h4>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div>
+                          <p className="text-gray-400">API返回密钥数量:</p>
+                          <p className="text-white font-mono">{accessKeys.length}</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-400">当前使用密钥ID:</p>
+                          <p className="text-white font-mono">{userDetail.access_key_id || '无'}</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-400">访问的字段名:</p>
+                          <p className="text-white font-mono">accessKeys</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-400">可用字段:</p>
+                          <p className="text-white font-mono">
+                            {Object.keys(userDetail).filter(k => k.includes('access') || k.includes('key')).join(', ')}
+                          </p>
+                        </div>
+                      </div>
                     </div>
                     
-                    {!userDetail.accessKeys || userDetail.accessKeys.length === 0 ? (
+                    {accessKeys.length === 0 ? (
                       <div className="text-center py-8">
                         <Key className="w-12 h-12 text-gray-600 mx-auto mb-3" />
                         <p className="text-gray-400">暂无密钥记录</p>
@@ -350,7 +487,7 @@ export default function UserDetailModal({ isOpen, onClose, userDetail, loading }
                             </tr>
                           </thead>
                           <tbody>
-                            {userDetail.accessKeys.map((key) => {
+                            {accessKeys.map((key: any) => {
                               const isCurrentKey = key.id === userDetail.access_key_id
                               const isExpired = key.key_expires_at && new Date(key.key_expires_at) < new Date()
                               
@@ -444,32 +581,32 @@ export default function UserDetailModal({ isOpen, onClose, userDetail, loading }
                   </div>
                   
                   {/* 密钥统计 */}
-                  {userDetail.accessKeys && userDetail.accessKeys.length > 0 && (
+                  {accessKeys.length > 0 && (
                     <div className="bg-gray-900/50 rounded-xl p-6">
                       <h3 className="text-lg font-semibold text-white mb-4">密钥统计</h3>
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                         <div className="bg-gray-800/30 rounded-lg p-4">
                           <p className="text-sm text-gray-400">总密钥数</p>
                           <p className="text-2xl font-bold text-white mt-2">
-                            {userDetail.accessKeys.length}
+                            {accessKeys.length}
                           </p>
                         </div>
                         <div className="bg-gray-800/30 rounded-lg p-4">
                           <p className="text-sm text-gray-400">已使用</p>
                           <p className="text-2xl font-bold text-green-400 mt-2">
-                            {userDetail.accessKeys.filter(k => k.used_at).length}
+                            {accessKeys.filter((k: any) => k.used_at).length}
                           </p>
                         </div>
                         <div className="bg-gray-800/30 rounded-lg p-4">
                           <p className="text-sm text-gray-400">未使用</p>
                           <p className="text-2xl font-bold text-blue-400 mt-2">
-                            {userDetail.accessKeys.filter(k => !k.used_at).length}
+                            {accessKeys.filter((k: any) => !k.used_at).length}
                           </p>
                         </div>
                         <div className="bg-gray-800/30 rounded-lg p-4">
                           <p className="text-sm text-gray-400">已过期</p>
                           <p className="text-2xl font-bold text-red-400 mt-2">
-                            {userDetail.accessKeys.filter(k => k.key_expires_at && new Date(k.key_expires_at) < new Date()).length}
+                            {accessKeys.filter((k: any) => k.key_expires_at && new Date(k.key_expires_at) < new Date()).length}
                           </p>
                         </div>
                       </div>
@@ -478,14 +615,40 @@ export default function UserDetailModal({ isOpen, onClose, userDetail, loading }
                 </div>
               )}
 
-              {/* AI使用标签页 - 🔥 恢复完整数据显示 */}
+              {/* AI使用标签页 - 🔥 修复：使用新的获取函数 */}
               {activeTab === 'ai' && (
                 <div className="space-y-6">
                   <div className="bg-gray-900/50 rounded-xl p-6">
                     <h3 className="text-lg font-semibold text-white mb-4">
-                      AI使用记录 ({userDetail.aiUsageRecords?.length || 0})
+                      AI使用记录 ({aiUsageRecords.length})
                     </h3>
-                    {!userDetail.aiUsageRecords || userDetail.aiUsageRecords.length === 0 ? (
+                    
+                    {/* 调试信息 */}
+                    <div className="mb-4 p-3 bg-gray-800/30 rounded-lg">
+                      <h4 className="text-sm font-medium text-purple-400 mb-2">🔍 AI记录调试信息</h4>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div>
+                          <p className="text-gray-400">API返回记录数量:</p>
+                          <p className="text-white font-mono">{aiUsageRecords.length}</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-400">访问的字段名:</p>
+                          <p className="text-white font-mono">aiUsageRecords</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-400">可用字段:</p>
+                          <p className="text-white font-mono">
+                            {Object.keys(userDetail).filter(k => k.includes('ai') || k.includes('usage')).join(', ')}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-gray-400">第一条记录ID:</p>
+                          <p className="text-white font-mono">{aiUsageRecords[0]?.id || '无'}</p>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {aiUsageRecords.length === 0 ? (
                       <div className="text-center py-8">
                         <Brain className="w-12 h-12 text-gray-600 mx-auto mb-3" />
                         <p className="text-gray-400">暂无AI使用记录</p>
@@ -495,7 +658,7 @@ export default function UserDetailModal({ isOpen, onClose, userDetail, loading }
                       </div>
                     ) : (
                       <div className="space-y-4">
-                        {userDetail.aiUsageRecords.map((record) => (
+                        {aiUsageRecords.map((record: any) => (
                           <div key={record.id} className="bg-gray-800/30 rounded-lg p-4 border border-gray-700/50">
                             <div className="flex items-center justify-between mb-3">
                               <div className="flex items-center">
@@ -529,7 +692,7 @@ export default function UserDetailModal({ isOpen, onClose, userDetail, loading }
                               </div>
                             </div>
                             
-                            {/* 🔥 恢复token使用情况的显示 */}
+                            {/* 显示token使用情况（如果有） */}
                             {record.token_usage && (
                               <div className="mt-3 pt-3 border-t border-gray-700/50">
                                 <p className="text-sm text-gray-400 mb-2">Token使用情况</p>
@@ -559,7 +722,7 @@ export default function UserDetailModal({ isOpen, onClose, userDetail, loading }
                 </div>
               )}
 
-              {/* 游戏记录标签页 */}
+              {/* 游戏记录标签页 - 🔥 修复：使用新的获取函数 */}
               {activeTab === 'games' && (
                 <div className="space-y-6">
                   {/* 游戏统计 */}
@@ -596,16 +759,34 @@ export default function UserDetailModal({ isOpen, onClose, userDetail, loading }
 
                   {/* 游戏历史记录 */}
                   <div className="bg-gray-900/50 rounded-xl p-6">
-                    <h3 className="text-lg font-semibold text-white mb-4">游戏历史记录（最近10场）</h3>
+                    <h3 className="text-lg font-semibold text-white mb-4">游戏历史记录</h3>
                     
                     {/* 调试信息 */}
                     <div className="mb-4 p-3 bg-gray-800/30 rounded-lg">
-                      <p className="text-sm text-gray-400">
-                        API返回游戏记录数量: {userDetail.gameHistory?.length || 0}
-                      </p>
+                      <h4 className="text-sm font-medium text-green-400 mb-2">🔍 游戏记录调试信息</h4>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div>
+                          <p className="text-gray-400">API返回记录数量:</p>
+                          <p className="text-white font-mono">{gameHistory.length}</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-400">访问的字段名:</p>
+                          <p className="text-white font-mono">gameHistory</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-400">可用字段:</p>
+                          <p className="text-white font-mono">
+                            {Object.keys(userDetail).filter(k => k.includes('game') || k.includes('history')).join(', ')}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-gray-400">第一条记录ID:</p>
+                          <p className="text-white font-mono">{gameHistory[0]?.id?.substring(0, 8) || '无'}</p>
+                        </div>
+                      </div>
                     </div>
                     
-                    {!userDetail.gameHistory || userDetail.gameHistory.length === 0 ? (
+                    {gameHistory.length === 0 ? (
                       <div className="text-center py-8">
                         <Gamepad2 className="w-12 h-12 text-gray-600 mx-auto mb-3" />
                         <p className="text-gray-400">暂无游戏记录</p>
@@ -623,21 +804,31 @@ export default function UserDetailModal({ isOpen, onClose, userDetail, loading }
                               <th className="text-left py-3 px-4 text-gray-400 font-medium">对手</th>
                               <th className="text-left py-3 px-4 text-gray-400 font-medium">结果</th>
                               <th className="text-left py-3 px-4 text-gray-400 font-medium">时长</th>
+                              <th className="text-left py-3 px-4 text-gray-400 font-medium">任务完成</th>
                             </tr>
                           </thead>
                           <tbody>
-                            {userDetail.gameHistory.map((game) => {
+                            {gameHistory.map((game: any) => {
                               const isPlayer1 = game.player1_id === userDetail.id
                               const opponentId = isPlayer1 ? game.player2_id : game.player1_id
                               
                               // 计算游戏时长
                               let duration = '未知'
                               if (game.started_at && game.ended_at) {
-                                const start = new Date(game.started_at)
-                                const end = new Date(game.ended_at)
-                                const minutes = Math.round((end.getTime() - start.getTime()) / (1000 * 60))
-                                duration = `${minutes}分钟`
+                                try {
+                                  const start = new Date(game.started_at)
+                                  const end = new Date(game.ended_at)
+                                  const minutes = Math.round((end.getTime() - start.getTime()) / (1000 * 60))
+                                  duration = `${minutes}分钟`
+                                } catch (error) {
+                                  duration = '时长计算错误'
+                                }
                               }
+                              
+                              // 计算任务完成情况
+                              const taskResults = game.task_results || []
+                              const completedTasks = taskResults.filter((task: any) => task.completed).length
+                              const totalTasks = taskResults.length
                               
                               return (
                                 <tr key={game.id} className="border-b border-gray-700/30 hover:bg-gray-800/30">
@@ -679,6 +870,11 @@ export default function UserDetailModal({ isOpen, onClose, userDetail, loading }
                                       <Clock className="w-3 h-3 text-gray-400 mr-1" />
                                       <span className="text-gray-300">{duration}</span>
                                     </div>
+                                  </td>
+                                  <td className="py-3 px-4">
+                                    <span className="text-gray-300">
+                                      {totalTasks > 0 ? `${completedTasks}/${totalTasks}` : '无'}
+                                    </span>
                                   </td>
                                 </tr>
                               )

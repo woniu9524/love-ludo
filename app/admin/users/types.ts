@@ -19,11 +19,10 @@ export interface User {
   activeKeyUsedAt: string | null
   activeKeyExpires: string | null
   isActive: boolean
-  access_key?: any
 }
 
 export interface UserDetail {
-  // profiles 表字段
+  // 基本字段（数据库原始字段，使用下划线）
   id: string
   email: string
   nickname: string | null
@@ -38,7 +37,7 @@ export interface UserDetail {
   created_at: string
   updated_at: string
   
-  // 🔥 关键：必须与API返回的字段名一致（accessKeys，驼峰命名）
+  // 🔥 关联字段（使用驼峰命名，与API返回一致）
   accessKeys: Array<{
     id: number
     key_code: string
@@ -53,7 +52,6 @@ export interface UserDetail {
     updated_at: string
   }>
   
-  // 🔥 关键：必须与API返回的字段名一致（aiUsageRecords，驼峰命名）
   aiUsageRecords: Array<{
     id: number
     user_id: string
@@ -64,7 +62,6 @@ export interface UserDetail {
     success: boolean
   }>
   
-  // 🔥 关键：必须与API返回的字段名一致（gameHistory，驼峰命名）
   gameHistory: Array<{
     id: string
     room_id: string | null
