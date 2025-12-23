@@ -16,7 +16,7 @@ export default function UserDetailModal({ isOpen, onClose, userDetail, loading }
   const [activeTab, setActiveTab] = useState<'info' | 'keys' | 'ai' | 'games'>('info')
   const [copied, setCopied] = useState<string | null>(null)
 
-  // 🔥 调试：查看接收到的数据
+  // 调试：查看接收到的数据
   useEffect(() => {
     if (userDetail) {
       console.log('用户详情数据:', {
@@ -346,6 +346,7 @@ export default function UserDetailModal({ isOpen, onClose, userDetail, loading }
                               <th className="text-left py-3 px-4 text-gray-400 font-medium">使用情况</th>
                               <th className="text-left py-3 px-4 text-gray-400 font-medium">使用时间</th>
                               <th className="text-left py-3 px-4 text-gray-400 font-medium">过期时间</th>
+                              <th className="text-left py-3 px-4 text-gray-400 font-medium">操作</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -419,6 +420,20 @@ export default function UserDetailModal({ isOpen, onClose, userDetail, loading }
                                       {key.key_expires_at ? formatSimpleDate(key.key_expires_at) : '无限制'}
                                     </span>
                                   </td>
+                                  <td className="py-3 px-4">
+                                    <button
+                                      onClick={() => {
+                                        if (key.user_id) {
+                                          alert(`密钥 ${key.key_code} 已被用户使用`)
+                                        } else {
+                                          alert(`密钥 ${key.key_code} 可分配给其他用户`)
+                                        }
+                                      }}
+                                      className="px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded text-sm text-gray-300"
+                                    >
+                                      管理
+                                    </button>
+                                  </td>
                                 </tr>
                               )
                             })}
@@ -463,7 +478,7 @@ export default function UserDetailModal({ isOpen, onClose, userDetail, loading }
                 </div>
               )}
 
-              {/* AI使用标签页 */}
+              {/* AI使用标签页 - 🔥 恢复完整数据显示 */}
               {activeTab === 'ai' && (
                 <div className="space-y-6">
                   <div className="bg-gray-900/50 rounded-xl p-6">
@@ -513,6 +528,29 @@ export default function UserDetailModal({ isOpen, onClose, userDetail, loading }
                                 </pre>
                               </div>
                             </div>
+                            
+                            {/* 🔥 恢复token使用情况的显示 */}
+                            {record.token_usage && (
+                              <div className="mt-3 pt-3 border-t border-gray-700/50">
+                                <p className="text-sm text-gray-400 mb-2">Token使用情况</p>
+                                <div className="grid grid-cols-3 gap-2">
+                                  <div className="bg-gray-800/50 rounded p-2">
+                                    <p className="text-xs text-gray-400">输入Token</p>
+                                    <p className="text-white">{record.token_usage.input_tokens?.toLocaleString() || 0}</p>
+                                  </div>
+                                  <div className="bg-gray-800/50 rounded p-2">
+                                    <p className="text-xs text-gray-400">输出Token</p>
+                                    <p className="text-white">{record.token_usage.output_tokens?.toLocaleString() || 0}</p>
+                                  </div>
+                                  <div className="bg-gray-800/50 rounded p-2">
+                                    <p className="text-xs text-gray-400">缓存状态</p>
+                                    <p className={`text-sm ${record.token_usage.cache_hit ? 'text-green-400' : 'text-amber-400'}`}>
+                                      {record.token_usage.cache_hit ? '命中' : '未命中'}
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
                           </div>
                         ))}
                       </div>

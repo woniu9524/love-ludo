@@ -23,7 +23,7 @@ export interface User {
 }
 
 export interface UserDetail {
-  // 🔥 关键：这些字段名必须与API返回的完全一致
+  // profiles 表字段
   id: string
   email: string
   nickname: string | null
@@ -38,7 +38,7 @@ export interface UserDetail {
   created_at: string
   updated_at: string
   
-  // 🔥 关键：必须与API返回的字段名一致（accessKeys，不是access_keys）
+  // 关键：必须与API返回的字段名一致
   accessKeys: Array<{
     id: number
     key_code: string
@@ -53,7 +53,7 @@ export interface UserDetail {
     updated_at: string
   }>
   
-  // 🔥 关键：必须与API返回的字段名一致（aiUsageRecords，不是ai_usage_records）
+  // 🔥 恢复完整的AI记录字段，包括token_usage
   aiUsageRecords: Array<{
     id: number
     user_id: string
@@ -62,9 +62,13 @@ export interface UserDetail {
     request_data: any
     response_data: any
     success: boolean
+    token_usage?: {
+      input_tokens: number
+      output_tokens: number
+      cache_hit: boolean
+    }
   }>
   
-  // 🔥 关键：必须与API返回的字段名一致（gameHistory，不是game_history）
   gameHistory: Array<{
     id: string
     room_id: string | null
