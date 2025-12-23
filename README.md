@@ -37,11 +37,57 @@
 - 数据库与鉴权：使用 Supabase Free（Postgres + Auth + Realtime）
 - AI（可选）：OpenRouter 需 API Key，按量计费；不启用也可完整游玩
 
-部署步骤（简版）：
+### 部署步骤（简版）：
 - 在 Supabase 新建项目 → 执行 `docs/db/001_schema.sql` 与 `docs/db/002_rls.sql`
 - 复制 `Project URL` 与 `Anon (publishable) key` 填入环境变量
 - 在 Vercel 导入本仓库 → 设置 `NEXT_PUBLIC_SUPABASE_URL` 与 `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`（如启用 AI，再设置 `OPENROUTER_API_KEY`）→ 一键部署
 
+<details>
+ <summary>部署步骤（详细）</summary>
+
+### 部署步骤（详细）：
+- 数据库初始化
+在 [Supabase](https://supabase.com/) 新建项目（每个账户的免费额度为两个）
+![img.png](docs/img/新建项目.png)
+选择地区：可选择里你部署平台地址比较近的地区，减少延迟
+![img.png](docs/img/选择地区.png)
+执行SQL脚本
+1. [001_schema.sql](docs/db/001_schema.sql)
+2. [002_rls.sql](docs/db/002_rls.sql)
+![img.png](docs/img/SQL脚本执行1.png)
+将sql复制到控制台中，全选，执行
+![img.png](docs/img/SQL脚本执行2.png)
+开启 rooms/game_sessions/game_moves 三张表的 realtime权限
+![img.png](docs/img/表realtime开启1.png)
+![img.png](docs/img/表realtime开启2.png) 
+
+
+- 获取Supabase key 
+Project URL
+![img.png](docs/img/ProjectURL.png)
+Publishable Key
+![img.png](docs/img/publishableKey.png)
+
+
+- [Vervel](https://vercel.com/) 部署，自行注册并绑定自己的GitHub这里不再赘述
+![img.png](docs/img/Vercel新建Project1.png)
+选择你fork的仓库，进行 `Import` 
+![img.png](docs/img/Vercel新建Project2.png)
+**设置环境变量**
+![img.png](docs/img/设置环境变量.png)
+
+| KEY                                  | VALUE                   |
+|--------------------------------------|-------------------------|
+| NEXT_PUBLIC_SUPABASE_URL             | https://xxx.supabase.co | 
+| NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY | sb_publishable_xxxx     | 
+
+执行部署
+![img.png](docs/img/Vercel部署.png)
+- 部署完成之后可以通过Vercel提供的域名直接访问
+![img.png](docs/img/Vercel项目地址.png)
+- 自定义域名 （CNAME方式）
+![img.png](docs/img/自定义域名.png)
+</details>
 
 ## 快速开始
 
@@ -74,6 +120,14 @@ OPENROUTER_API_KEY=你的 OpenRouter API Key（启用 AI 生成时必填）
 - 确保 Realtime 已开启（rooms/game_sessions/game_moves），并对相关表启用变更广播
 
 4) 关闭 email 验证（Project Settings → Authentication → Email）
+
+<details>
+ <summary> 关闭 email 验证</summary>
+
+  ![关闭邮箱验证.png](docs/img/%E5%85%B3%E9%97%AD%E9%82%AE%E7%AE%B1%E9%AA%8C%E8%AF%81.png)
+
+</details>
+
 
 5) 启动开发环境
 
