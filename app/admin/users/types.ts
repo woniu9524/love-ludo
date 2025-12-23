@@ -19,6 +19,35 @@ export interface User {
   activeKeyUsedAt: string | null
   activeKeyExpires: string | null
   isActive: boolean
+  access_key?: any // 当前使用的密钥
+}
+
+// 游戏历史记录类型
+export interface GameHistory {
+  id: string
+  room_id: string | null
+  session_id: string | null
+  player1_id: string
+  player2_id: string
+  winner_id: string | null
+  started_at: string | null
+  ended_at: string | null
+  task_results: any[]
+  created_at: string
+  
+  // 增强字段
+  opponent: {
+    email: string
+    nickname: string | null
+  }
+  theme: {
+    title: string
+  }
+  duration: number | null
+  result: '胜利' | '失败' | '平局' | '未知'
+  user_role: '玩家1' | '玩家2'
+  completed_tasks: number
+  total_tasks: number
 }
 
 export interface UserDetail {
@@ -37,8 +66,8 @@ export interface UserDetail {
   created_at: string
   updated_at: string
   
-  // 关联数据
-  accessKeys: Array<{
+  // 🔥 关键修复：使用复数形式，返回所有密钥
+  access_keys: Array<{
     id: number
     key_code: string
     is_active: boolean
@@ -52,7 +81,7 @@ export interface UserDetail {
     updated_at: string
   }>
   
-  aiUsageRecords: Array<{
+  ai_usage_records: Array<{
     id: number
     user_id: string
     feature: string
@@ -60,19 +89,8 @@ export interface UserDetail {
     request_data: any
     response_data: any
     success: boolean
-    token_usage?: {
-      input_tokens: number
-      output_tokens: number
-      cache_hit: boolean
-    }
   }>
   
-  gameHistory: Array<{
-    id: number
-    user_id: string
-    room_id: string
-    result: string
-    score: number
-    created_at: string
-  }>
+  // 🔥 使用增强的游戏记录类型
+  game_history: GameHistory[]
 }
